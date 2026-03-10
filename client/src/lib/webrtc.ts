@@ -58,8 +58,6 @@ export class WebRTCCall {
         this.reconnectTimer = setTimeout(() => this.attemptIceRestart(), 2000);
       } else if (state === "failed") {
         this.attemptIceRestart();
-      } else if (state === "closed") {
-        this.onEnded?.();
       }
     };
   }
@@ -84,6 +82,8 @@ export class WebRTCCall {
   }
 
   private async attemptIceRestart(): Promise<void> {
+    if (this.ended) return;
+    clearTimeout(this.giveUpTimer);
     this.onReconnecting?.();
     try {
       const offer = await this.pc.createOffer({ iceRestart: true });

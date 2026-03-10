@@ -18,6 +18,12 @@ let pendingCandidates: RTCIceCandidateInit[] = [];
 export function useCall() {
   function setupCallListeners() {
     wsClient.on("call-offer", async (data) => {
+      const existing = activeCall();
+      if (existing && data.iceRestart) {
+        // ICE restart — re-negotiate on existing call
+        await existing.handleOffer(data.offer);
+        return;
+      }
       pendingCandidates = [];
       setCallTargetId(data.senderId);
       setCallStatus("incoming");
@@ -104,10 +110,7 @@ export function useCall() {
       showToast("Call ended", "info");
     }
     const call = activeCall();
-    if (call) {
-      call.localStream?.getTracks().forEach((t) => t.stop());
-      call.pc.close();
-    }
+    call?.end();
     setActiveCall(null);
     setLocalStream(null);
     setRemoteStream(null);
