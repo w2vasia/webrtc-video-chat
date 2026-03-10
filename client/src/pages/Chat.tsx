@@ -21,6 +21,15 @@ export default function Chat() {
     await initKeys();
     setupListeners();
     setupCallListeners();
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    navigator.serviceWorker?.addEventListener("message", (e) => {
+      if (e.data?.type === "open-chat" && e.data.friendId) {
+        setActiveFriend(e.data.friendId);
+        setSidebarOpen(false);
+      }
+    });
   });
 
   return (
@@ -47,6 +56,7 @@ export default function Chat() {
         <PendingRequests />
         <FriendList
           onSelect={(id) => { setActiveFriend(id); setSidebarOpen(false); }}
+          onDeselect={() => { setActiveFriend(null); setSidebarOpen(true); }}
           activeId={state.activeFriend}
           onlineUsers={state.onlineUsers}
         />

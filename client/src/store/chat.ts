@@ -20,6 +20,15 @@ interface ChatState {
   activeFriend: number | null;
   sharedKeys: Record<number, CryptoKey>;
   onlineUsers: Set<number>;
+  unreadCounts: Record<number, number>;
+  friendInfo: Record<number, { name: string; email: string }>;
+}
+
+function loadUnreadCounts(): Record<number, number> {
+  try { return JSON.parse(localStorage.getItem("unreadCounts") || "{}"); } catch { return {}; }
+}
+function saveUnreadCounts(counts: Record<number, number>) {
+  localStorage.setItem("unreadCounts", JSON.stringify(counts));
 }
 
 const [state, setState] = createStore<ChatState>({
@@ -27,6 +36,8 @@ const [state, setState] = createStore<ChatState>({
   activeFriend: null,
   sharedKeys: {},
   onlineUsers: new Set(),
+  unreadCounts: loadUnreadCounts(),
+  friendInfo: {},
 });
 
 let myKeyPair: CryptoKeyPair | null = null;
@@ -136,10 +147,45 @@ export function useChat() {
         };
 
         setState("conversations", data.from, (prev = []) => [...prev, msg]);
+
+        const isActiveChat = state.activeFriend === data.from && !document.hidden;
+        if (!isActiveChat) {
+          if (state.activeFriend !== data.from) {
+            setState("unreadCounts", data.from, (c = 0) => c + 1);
+            saveUnreadCounts(state.unreadCounts);
+          }
+          let title = "New message";
+          try {
+            const res = await api("/api/friends");
+            registerFriendNames(res.friends);
+            const friend = (res.friends as { id: number; displayName: string; email: string }[]).find((f) => f.id === data.from);
+            if (friend) title = `${friend.displayName} (${friend.email})`;
+          } catch {}
+          if (Notification.permission === "granted" && navigator.serviceWorker?.controller) {
+            const reg = await navigator.serviceWorker.ready;
+            reg.showNotification(title, {
+              body: text.length > 100 ? text.slice(0, 100) + "..." : text,
+              tag: `chat-${data.from}`,
+              data: { friendId: data.from },
+            });
+          }
+        }
       } catch (err) {
         console.error("Failed to decrypt message", err);
       }
     });
+  }
+
+  function setActiveFriend(id: number | null) {
+    setState("activeFriend", id);
+    if (id !== null) {
+      setState("unreadCounts", id, 0);
+      saveUnreadCounts(state.unreadCounts);
+    }
+  }
+
+  function registerFriendNames(friends: { id: number; displayName: string; email: string }[]) {
+    for (const f of friends) setState("friendInfo", f.id, { name: f.displayName, email: f.email });
   }
 
   return {
@@ -149,6 +195,7 @@ export function useChat() {
     sendMessage,
     loadHistory,
     setupListeners,
-    setActiveFriend: (id: number | null) => setState("activeFriend", id),
+    setActiveFriend,
+    registerFriendNames,
   };
 }
