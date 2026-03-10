@@ -12,8 +12,10 @@ class WsClient {
   private retryDelay = 1000;
   private readonly MAX_DELAY = 30000;
   private pendingMessages = new Map<string, string>(); // clientId → serialized payload
+  private replayed = false;
 
   connect(token: string) {
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     this.token = token;
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     this.ws = new WebSocket(`${proto}//${location.host}/ws`);
@@ -38,6 +40,7 @@ class WsClient {
     this.ws.onclose = (e) => {
       console.log("[ws] closed:", e.code, e.reason);
       setWsConnected(false);
+      this.replayed = false;
       const delay = this.retryDelay;
       this.retryDelay = Math.min(this.retryDelay * 2, this.MAX_DELAY);
       this.reconnectTimer = setTimeout(() => {
@@ -74,6 +77,8 @@ class WsClient {
   }
 
   private replayPending() {
+    if (this.replayed) return;
+    this.replayed = true;
     for (const serialized of this.pendingMessages.values()) {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(serialized);

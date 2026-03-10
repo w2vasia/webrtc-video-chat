@@ -137,12 +137,8 @@ export function useChat() {
     };
 
     setState("conversations", friendId, (prev = []) => [...prev, msg]);
-    const clientId = msg.id; // use the UUID as clientId
+    const clientId = msg.id;
     wsClient.queueMessage(clientId, { type: "chat", to: friendId, ciphertext, nonce, clientId });
-
-    setState("conversations", friendId, (msgs) =>
-      msgs.map((m) => (m.id === msg.id ? { ...m, pending: false } : m)),
-    );
   }
 
   function sendTyping(friendId: number, isTyping: boolean) {
@@ -160,7 +156,7 @@ export function useChat() {
         const updated: typeof convs = {};
         for (const [fid, msgs] of Object.entries(convs)) {
           updated[Number(fid)] = msgs.map(m =>
-            m.id === data.clientId ? { ...m, serverId: String(data.serverId), timestamp: data.timestamp } : m
+            m.id === data.clientId ? { ...m, serverId: String(data.serverId), timestamp: data.timestamp, pending: false } : m
           );
         }
         return updated;
