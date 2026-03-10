@@ -19,8 +19,13 @@ export class WebRTCCall {
   onRemoteStream?: (stream: MediaStream) => void;
   onConnected?: () => void;
   onEnded?: () => void;
+  onReconnecting?: () => void;
+  onFailed?: () => void;
   private pendingIceCandidates: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private giveUpTimer?: ReturnType<typeof setTimeout>;
+  private ended = false;
 
   static async create(targetId: number): Promise<WebRTCCall> {
     const iceServers = await getIceServers();
@@ -44,10 +49,17 @@ export class WebRTCCall {
     };
 
     this.pc.onconnectionstatechange = () => {
-      if (this.pc.connectionState === "connected") {
+      const state = this.pc.connectionState;
+      if (state === "connected") {
+        clearTimeout(this.reconnectTimer);
+        clearTimeout(this.giveUpTimer);
         this.onConnected?.();
-      } else if (this.pc.connectionState === "failed" || this.pc.connectionState === "disconnected") {
-        this.end();
+      } else if (state === "disconnected") {
+        this.reconnectTimer = setTimeout(() => this.attemptIceRestart(), 2000);
+      } else if (state === "failed") {
+        this.attemptIceRestart();
+      } else if (state === "closed") {
+        this.onEnded?.();
       }
     };
   }
@@ -69,6 +81,22 @@ export class WebRTCCall {
       } catch {}
     }
     throw new Error("No camera or microphone available");
+  }
+
+  private async attemptIceRestart(): Promise<void> {
+    this.onReconnecting?.();
+    try {
+      const offer = await this.pc.createOffer({ iceRestart: true });
+      await this.pc.setLocalDescription(offer);
+      wsClient.send({ type: "call-offer", targetId: this.targetId, offer, iceRestart: true });
+      this.giveUpTimer = setTimeout(() => {
+        this.onFailed?.();
+        this.end();
+      }, 15000);
+    } catch {
+      this.onFailed?.();
+      this.end();
+    }
   }
 
   async createOffer(): Promise<void> {
@@ -120,6 +148,10 @@ export class WebRTCCall {
   }
 
   end() {
+    if (this.ended) return;
+    this.ended = true;
+    clearTimeout(this.reconnectTimer);
+    clearTimeout(this.giveUpTimer);
     this.localStream?.getTracks().forEach((t) => t.stop());
     this.pc.close();
     wsClient.send({ type: "call-end", targetId: this.targetId });

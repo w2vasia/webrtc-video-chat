@@ -52,6 +52,8 @@ export function useCall() {
     call.onRemoteStream = (s) => setRemoteStream(s);
     call.onConnected = () => setCallStatus("connected");
     call.onEnded = () => endCall();
+    call.onReconnecting = () => setCallStatus("connecting");
+    call.onFailed = () => showToast("Call lost", "error");
 
     const stream = await call.startLocalMedia();
     setLocalStream(stream);
@@ -69,6 +71,8 @@ export function useCall() {
     call.onRemoteStream = (s) => setRemoteStream(s);
     call.onConnected = () => setCallStatus("connected");
     call.onEnded = () => endCall();
+    call.onReconnecting = () => setCallStatus("connecting");
+    call.onFailed = () => showToast("Call lost", "error");
 
     const stream = await call.startLocalMedia();
     setLocalStream(stream);
