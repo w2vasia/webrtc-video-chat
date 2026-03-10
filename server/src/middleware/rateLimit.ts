@@ -5,7 +5,7 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
-export function rateLimit(opts: { windowMs: number; max: number }) {
+export function rateLimit(opts: { windowMs: number; max: number; trustProxy?: boolean }) {
   const store = new Map<string, RateLimitEntry>();
 
   // Cleanup expired entries periodically
@@ -17,9 +17,14 @@ export function rateLimit(opts: { windowMs: number; max: number }) {
   }, 60000);
 
   return async (c: Context, next: Next) => {
-    const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
-      || c.req.header("x-real-ip")
-      || "unknown";
+    let ip: string;
+    if (opts.trustProxy) {
+      ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
+        || c.req.header("x-real-ip")
+        || "unknown";
+    } else {
+      ip = c.req.header("x-real-ip") || "unknown";
+    }
     const now = Date.now();
     const entry = store.get(ip);
 

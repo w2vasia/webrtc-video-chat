@@ -32,7 +32,11 @@ app.use("*", cors({
 app.use("*", logger());
 
 // Public routes (rate limited)
-app.use("/api/auth/*", rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
+app.use("/api/auth/*", rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  trustProxy: !!process.env.TRUST_PROXY,
+}));
 app.route("/api/auth", authRoutes(db));
 app.get("/api/health", (c) => c.json({ ok: true }, 200));
 
