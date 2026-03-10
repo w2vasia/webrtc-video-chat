@@ -31,23 +31,3 @@ export function pushRoutes(db: Database) {
   return app;
 }
 
-export async function sendPushNotification(db: Database, userId: number, payload: { title: string; body: string }) {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
-
-  const subs = db
-    .query("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?")
-    .all(userId) as Array<{ endpoint: string; p256dh: string; auth: string }>;
-
-  for (const sub of subs) {
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        JSON.stringify(payload),
-      );
-    } catch (err: any) {
-      if (err.statusCode === 410) {
-        db.query("DELETE FROM push_subscriptions WHERE endpoint = ?").run(sub.endpoint);
-      }
-    }
-  }
-}

@@ -40,6 +40,13 @@ export function createWsHandlers(db: Database) {
             ws.data.email = payload.email;
             ws.data.authenticated = true;
 
+            // Close previous connection if user opens another tab
+            const existing = onlineUsers.get(payload.sub);
+            if (existing) {
+              existing.ws.send(JSON.stringify({ type: "session-replaced" }));
+              existing.ws.close(4000, "Session replaced");
+            }
+
             onlineUsers.set(payload.sub, { userId: payload.sub, email: payload.email, ws });
             db.query("UPDATE users SET last_seen = unixepoch() WHERE id = ?").run(payload.sub);
 
@@ -84,9 +91,14 @@ export function createWsHandlers(db: Database) {
         return !!row;
       };
 
+      // Max payload size for ciphertext/nonce (64KB)
+      const MAX_PAYLOAD = 65536;
+
       switch (data.type) {
         case "chat": {
-          if (!data.to || !data.ciphertext || !data.nonce) break;
+          if (typeof data.to !== "number" || !Number.isInteger(data.to)) break;
+          if (typeof data.ciphertext !== "string" || data.ciphertext.length > MAX_PAYLOAD) break;
+          if (typeof data.nonce !== "string" || data.nonce.length > 64) break;
           if (!isFriend(data.to)) {
             ws.send(JSON.stringify({ type: "error", message: "Not friends" }));
             break;
@@ -109,20 +121,41 @@ export function createWsHandlers(db: Database) {
           break;
         }
 
-        case "call-offer":
-        case "call-answer":
-        case "ice-candidate":
-        case "call-end": {
-          if (!data.targetId || !isFriend(data.targetId)) break;
+        case "call-offer": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
-            target.ws.send(JSON.stringify({ ...data, senderId: userId }));
+            target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, sdp: data.sdp }));
+          }
+          break;
+        }
+        case "call-answer": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          const target = onlineUsers.get(data.targetId);
+          if (target) {
+            target.ws.send(JSON.stringify({ type: "call-answer", senderId: userId, sdp: data.sdp }));
+          }
+          break;
+        }
+        case "ice-candidate": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          const target = onlineUsers.get(data.targetId);
+          if (target) {
+            target.ws.send(JSON.stringify({ type: "ice-candidate", senderId: userId, candidate: data.candidate }));
+          }
+          break;
+        }
+        case "call-end": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          const target = onlineUsers.get(data.targetId);
+          if (target) {
+            target.ws.send(JSON.stringify({ type: "call-end", senderId: userId }));
           }
           break;
         }
 
         case "typing": {
-          if (!data.to || !isFriend(data.to)) break;
+          if (typeof data.to !== "number" || !isFriend(data.to)) break;
           const target = onlineUsers.get(data.to);
           if (target) {
             target.ws.send(JSON.stringify({ type: "typing", from: userId }));

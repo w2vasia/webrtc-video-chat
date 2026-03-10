@@ -178,7 +178,7 @@ export function useChat() {
           if (Notification.permission === "granted" && navigator.serviceWorker?.controller) {
             const reg = await navigator.serviceWorker.ready;
             reg.showNotification(title, {
-              body: text.length > 100 ? text.slice(0, 100) + "..." : text,
+              body: "New message",
               tag: `chat-${data.from}`,
               data: { friendId: data.from },
             });

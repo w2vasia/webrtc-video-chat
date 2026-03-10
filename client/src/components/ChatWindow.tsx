@@ -20,8 +20,9 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
   });
 
   createEffect(() => {
-    messages();
-    if (!messagesContainer) return;
+    const msgs = messages();
+    if (!messagesContainer || !msgs.length) return;
+    if (loadingMore()) return; // Don't auto-scroll during history load
     if (shouldScrollToBottom) {
       requestAnimationFrame(() => messagesEnd?.scrollIntoView());
       return;

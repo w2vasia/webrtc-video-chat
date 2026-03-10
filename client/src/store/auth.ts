@@ -1,4 +1,6 @@
 import { createSignal } from "solid-js";
+import { wsClient } from "../lib/ws";
+import { deleteKey } from "../lib/keystore";
 
 interface User {
   id: number;
@@ -20,11 +22,17 @@ export function useAuth() {
     setUser(u);
   }
 
-  function logout() {
+  async function logout() {
+    wsClient.disconnect();
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("unreadCounts");
     setToken(null);
     setUser(null);
+    try {
+      await deleteKey("privateKey");
+      await deleteKey("publicKey");
+    } catch { /* ignore if IDB unavailable */ }
   }
 
   return { token, user, login, logout, isLoggedIn: () => !!token() };

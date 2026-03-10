@@ -23,7 +23,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 export async function createToken(userId: number, email: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  return sign({ sub: userId, email, iat: now, exp: now + 86400 * 7 }, JWT_SECRET);
+  return sign({ sub: userId, email, iat: now, exp: now + 86400 }, JWT_SECRET);
 }
 
 export async function verifyToken(token: string): Promise<JwtPayload> {

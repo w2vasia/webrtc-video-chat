@@ -1,7 +1,8 @@
 export async function api(path: string, opts: { method?: string; body?: any } = {}) {
   const token = localStorage.getItem("token");
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (opts.body) headers["Content-Type"] = "application/json";
 
   const res = await fetch(path, {
     method: opts.method || "GET",

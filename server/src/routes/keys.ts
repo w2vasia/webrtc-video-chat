@@ -22,9 +22,19 @@ export function keyRoutes(db: Database) {
     return c.json({ ok: true }, 200);
   });
 
-  // Fetch another user's public keys
+  // Fetch another user's public keys (friends only)
   app.get("/:userId", (c) => {
+    const requesterId = c.get("userId") as number;
     const targetId = Number(c.req.param("userId"));
+
+    // Allow fetching own keys or friend's keys
+    if (targetId !== requesterId) {
+      const friendship = db.query(
+        "SELECT 1 FROM friendships WHERE ((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = 'accepted'"
+      ).get(requesterId, targetId, targetId, requesterId);
+      if (!friendship) return c.json({ error: "Not friends" }, 403);
+    }
+
     const keys = db
       .query("SELECT identity_key, signed_pre_key, updated_at FROM public_keys WHERE user_id = ?")
       .get(targetId) as { identity_key: string; signed_pre_key: string; updated_at: number } | null;

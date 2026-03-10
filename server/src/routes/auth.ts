@@ -26,7 +26,7 @@ export function authRoutes(db: Database) {
 
     const existing = db.query("SELECT id FROM users WHERE email = ?").get(email);
     if (existing) {
-      return c.json({ error: "Email already registered" }, 409);
+      return c.json({ error: "Unable to create account" }, 409);
     }
 
     const passwordHash = await hashPassword(password);
