@@ -8,8 +8,6 @@ import AddFriend from "../components/AddFriend";
 import PendingRequests from "../components/PendingRequests";
 import ChatWindow from "../components/ChatWindow";
 import VideoCall from "../components/VideoCall";
-import IncomingCall from "../components/IncomingCall";
-
 export default function Chat() {
   const { user, token, logout } = useAuth();
   const { state, setActiveFriend, initKeys, setupListeners } = useChat();

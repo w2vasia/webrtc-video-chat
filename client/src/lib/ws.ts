@@ -19,7 +19,7 @@ class WsClient {
 
     this.ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      console.log("[ws] received:", data.type, data);
+      if (import.meta.env.DEV) console.log("[ws] received:", data.type, data);
       const handlers = this.handlers.get(data.type);
       if (handlers) handlers.forEach((h) => h(data));
     };

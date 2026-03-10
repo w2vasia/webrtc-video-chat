@@ -40,7 +40,7 @@ export default function AddFriend(props: { onAdded?: () => void }) {
         Add
       </button>
       {status() && (
-        <p class={status()!.ok ? "success-msg" : "error-msg"}>{status()!.msg}</p>
+        <p class={status()!.ok ? "success-msg" : "error-msg"} role="alert">{status()!.msg}</p>
       )}
     </form>
   );

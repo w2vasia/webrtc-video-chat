@@ -1,13 +1,20 @@
 // E2E encryption using X25519 key exchange + AES-256-GCM
 // All via Web Crypto API — zero dependencies
 
+function toBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+
 export async function generateKeyPair(): Promise<CryptoKeyPair> {
   return crypto.subtle.generateKey({ name: "X25519" }, false, ["deriveKey"]) as Promise<CryptoKeyPair>;
 }
 
 export async function exportPublicKey(key: CryptoKey): Promise<string> {
   const raw = await crypto.subtle.exportKey("raw", key);
-  return btoa(String.fromCharCode(...new Uint8Array(raw)));
+  return toBase64(raw);
 }
 
 export async function importPublicKey(b64: string): Promise<CryptoKey> {
@@ -32,8 +39,8 @@ export async function encrypt(sharedKey: CryptoKey, plaintext: string): Promise<
   const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, sharedKey, encoded);
 
   return {
-    ciphertext: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
-    nonce: btoa(String.fromCharCode(...iv)),
+    ciphertext: toBase64(encrypted),
+    nonce: toBase64(iv),
   };
 }
 

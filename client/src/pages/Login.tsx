@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, A } from "@solidjs/router";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
 
@@ -35,14 +35,14 @@ export default function Login() {
         <h1>Whisper</h1>
         <h2>Sign In</h2>
         <p class="auth-desc">End-to-end encrypted messaging</p>
-        {error() && <p class="error">{error()}</p>}
+        {error() && <p class="error" role="alert">{error()}</p>}
         <input type="email" placeholder="Email" value={email()} onInput={(e) => setEmail(e.target.value)} autocomplete="email" required />
         <input type="password" placeholder="Password" value={password()} onInput={(e) => setPassword(e.target.value)} autocomplete="current-password" required />
         <button type="submit" disabled={loading()}>
           {loading() ? "Signing in..." : "Sign In"}
         </button>
         <p class="link">
-          No account? <a href="/register">Register</a>
+          No account? <A href="/register">Register</A>
         </p>
       </form>
     </div>
