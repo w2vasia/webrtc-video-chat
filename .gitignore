@@ -6,4 +6,5 @@ dev-dist/
 .DS_Store
 data/
 .claude/
+.worktrees/
 package-lock.json
