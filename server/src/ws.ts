@@ -126,7 +126,7 @@ export function createWsHandlers(db: Database) {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
-            target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, sdp: data.sdp }));
+            target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, offer: data.offer }));
           }
           break;
         }
@@ -134,7 +134,7 @@ export function createWsHandlers(db: Database) {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
-            target.ws.send(JSON.stringify({ type: "call-answer", senderId: userId, sdp: data.sdp }));
+            target.ws.send(JSON.stringify({ type: "call-answer", senderId: userId, answer: data.answer }));
           }
           break;
         }
