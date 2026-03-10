@@ -64,7 +64,8 @@ export function useChat() {
       await storeKey("publicKey", myKeyPair.publicKey);
     }
 
-    const pub = await exportPublicKey(myKeyPair!.publicKey);
+    if (!myKeyPair) throw new Error("Key pair generation failed");
+    const pub = await exportPublicKey(myKeyPair.publicKey);
     await api("/api/keys", { method: "POST", body: { identityKey: pub, signedPreKey: pub } });
   }
 
@@ -78,7 +79,8 @@ export function useChat() {
       throw new Error("Friend hasn't logged in yet — keys not available");
     }
     const friendPub = await importPublicKey(res.identityKey);
-    const shared = await deriveSharedKey(myKeyPair!.privateKey, friendPub);
+    if (!myKeyPair) throw new Error("Keys not initialized — call initKeys() first");
+    const shared = await deriveSharedKey(myKeyPair.privateKey, friendPub);
 
     setState("sharedKeys", friendId, shared);
     return shared;
