@@ -77,7 +77,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
   }
 
   return (
-    <div class="flex flex-col h-[100dvh] w-full">
+    <div class="flex flex-col h-full w-full">
       {/* Header */}
       <div class="flex items-center gap-3 px-5 py-4 bg-white shadow-sm relative z-[2]">
         <button
@@ -101,8 +101,8 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
         <div class="flex items-center gap-2.5 px-5 py-2.5 bg-success-soft text-gray-900 font-medium text-[0.9375rem] border-b border-gray-200 animate-pulse-bg">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
           <span>Incoming call</span>
-          <button class="ml-auto px-4 py-1.5 bg-green-500 hover:opacity-90 text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px]" onClick={acceptCall}>Accept</button>
-          <button class="px-4 py-1.5 bg-red-500 hover:opacity-90 text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px]" onClick={rejectCall}>Decline</button>
+          <button class="ml-auto px-4 py-1.5 bg-green-500 hover:opacity-90 text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-opacity" onClick={acceptCall}>Accept</button>
+          <button class="px-4 py-1.5 bg-red-500 hover:opacity-90 text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-opacity" onClick={rejectCall}>Decline</button>
         </div>
       </Show>
 
@@ -132,12 +132,11 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
       {/* Input */}
       <form class="flex items-end gap-3 px-4 py-3 bg-white border-t border-gray-200" onSubmit={handleSend}>
         <textarea
-          class="flex-1 px-4 py-3 bg-surface-2 border border-transparent rounded-[10px] text-gray-900 text-[0.9375rem] font-[inherit] outline-none resize-none min-h-[44px] max-h-32 transition-all placeholder:text-gray-400 focus:border-primary focus:ring-[3px] focus:ring-primary/50"
+          class="flex-1 px-4 py-3 bg-surface-2 border border-transparent rounded-[10px] text-gray-900 text-[0.9375rem] font-[inherit] outline-none resize-none field-sizing-content min-h-[44px] max-h-32 transition-all placeholder:text-gray-400 focus:border-primary focus:ring-[3px] focus:ring-primary/50"
           placeholder="Type a message..."
           value={input()}
           onInput={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          rows={1}
         />
         <button
           class="flex-shrink-0 w-11 h-11 bg-primary hover:bg-primary-hover text-white rounded-full flex items-center justify-center cursor-pointer transition-colors"
