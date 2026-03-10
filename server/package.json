@@ -1,0 +1,17 @@
+{
+  "name": "server",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "hono": "^4",
+    "@hono/node-ws": "^1",
+    "web-push": "^3"
+  },
+  "devDependencies": {
+    "@types/web-push": "^3",
+    "bun-types": "latest"
+  }
+}
