@@ -69,10 +69,11 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
     if (state.hasMore[props.friendId] === false) return;
     const msgs = messages();
     if (!msgs.length) return;
-    const oldestId = msgs[0].id;
+    const cursor = msgs[0].serverId;
+    if (!cursor) return;
     const prevHeight = messagesContainer.scrollHeight;
     setLoadingMore(true);
-    await loadHistory(props.friendId, oldestId);
+    await loadHistory(props.friendId, cursor);
     setLoadingMore(false);
     requestAnimationFrame(() => {
       if (messagesContainer) {

@@ -48,6 +48,10 @@ export default function Chat() {
         <VideoCall />
       </Show>
 
+      <Show when={callStatus() === "incoming"}>
+        <IncomingCall />
+      </Show>
+
       {/* Sidebar */}
       <aside class={`flex flex-col flex-shrink-0 w-80 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-10 sm:static sm:z-auto transition-transform sm:transition-none ${sidebarOpen() ? "translate-x-0" : "-translate-x-full"}`}>
         <div class="px-4 pt-5 pb-4 border-b border-gray-200 flex flex-col gap-2">

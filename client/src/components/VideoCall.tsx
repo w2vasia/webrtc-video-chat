@@ -19,7 +19,6 @@ export default function VideoCall() {
 
   const statusText: Record<string, string> = {
     calling: "Calling...",
-    ringing: "Ringing...",
     connecting: "Connecting...",
     ended: "Call ended",
   };

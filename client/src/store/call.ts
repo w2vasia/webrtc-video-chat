@@ -3,7 +3,7 @@ import { WebRTCCall } from "../lib/webrtc";
 import { wsClient } from "../lib/ws";
 import { showToast } from "../components/Toast";
 
-export type CallStatus = "idle" | "calling" | "incoming" | "ringing" | "connecting" | "connected" | "ended";
+export type CallStatus = "idle" | "calling" | "incoming" | "connecting" | "connected" | "ended";
 
 const [callStatus, setCallStatus] = createSignal<CallStatus>("idle");
 const [activeCall, setActiveCall] = createSignal<WebRTCCall | null>(null);
@@ -14,9 +14,12 @@ const [callTargetId, setCallTargetId] = createSignal<number | null>(null);
 let pendingOffer: RTCSessionDescriptionInit | null = null;
 let pendingSenderId: number | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
+let callListenersRegistered = false;
 
 export function useCall() {
   function setupCallListeners() {
+    if (callListenersRegistered) return;
+    callListenersRegistered = true;
     wsClient.on("call-offer", async (data) => {
       const existing = activeCall();
       if (existing && data.iceRestart) {
@@ -106,6 +109,7 @@ export function useCall() {
   }
 
   function endCall() {
+    if (callStatus() === "idle" || callStatus() === "ended") return;
     if (callStatus() === "connected") {
       showToast("Call ended", "info");
     }
