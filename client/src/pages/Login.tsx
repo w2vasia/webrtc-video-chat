@@ -3,8 +3,8 @@ import { useNavigate } from "@solidjs/router";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
 
-const inputCls = "px-4 py-3 bg-surface-2 border border-transparent rounded-[10px] text-gray-900 text-base font-[inherit] outline-none min-h-[44px] w-full transition-all placeholder:text-gray-400 focus:border-primary focus:ring-[3px] focus:ring-primary/20";
-const btnCls = "py-3 bg-primary hover:bg-primary-hover text-white rounded-[10px] font-semibold text-base font-[inherit] cursor-pointer min-h-[44px] w-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+const inputCls = "px-4 py-3 bg-surface-2 border border-transparent rounded-[10px] text-gray-900 text-base font-[inherit] outline-none min-h-[44px] w-full transition-all placeholder:text-gray-400 focus:border-primary focus:ring-[3px] focus:ring-primary/50";
+const btnCls = "px-4 py-3 bg-primary hover:bg-primary-hover text-white rounded-[10px] font-semibold text-base font-[inherit] cursor-pointer min-h-[44px] w-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function Login() {
   const [email, setEmail] = createSignal("");
