@@ -136,14 +136,24 @@ body {
   transition: background 0.15s;
 }
 .friend-item:hover, .friend-item.active { background: var(--surface-2); }
+.avatar-wrapper {
+  position: relative; flex-shrink: 0;
+}
 .friend-avatar {
   width: 40px; height: 40px;
   background: var(--primary);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 1.1rem; color: white;
-  flex-shrink: 0;
 }
+.status-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  position: absolute; bottom: 0; right: 0;
+  border: 2px solid var(--surface);
+}
+.status-dot.online { background: var(--success); }
 .friend-info { display: flex; flex-direction: column; min-width: 0; }
 .friend-name { font-weight: 600; font-size: 0.95rem; }
 .friend-email { font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }

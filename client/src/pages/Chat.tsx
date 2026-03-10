@@ -43,6 +43,7 @@ export default function Chat() {
         <FriendList
           onSelect={(id) => { setActiveFriend(id); setSidebarOpen(false); }}
           activeId={state.activeFriend}
+          onlineUsers={state.onlineUsers}
         />
       </aside>
       <main class="chat-main">

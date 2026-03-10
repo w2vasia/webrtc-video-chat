@@ -48,6 +48,19 @@ export function createWsHandlers(db: Database) {
               ws.send(JSON.stringify({ type: "chat", from: msg.sender_id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
               db.query("UPDATE messages SET delivered = 1 WHERE id = ?").run(msg.id);
             }
+
+            // Broadcast online status to friends
+            const friends = db.query(
+              `SELECT CASE WHEN requester_id = ? THEN addressee_id ELSE requester_id END as friend_id
+               FROM friendships WHERE (requester_id = ? OR addressee_id = ?) AND status = 'accepted'`
+            ).all(payload.sub, payload.sub, payload.sub) as Array<{friend_id: number}>;
+
+            for (const f of friends) {
+              const friendWs = onlineUsers.get(f.friend_id);
+              if (friendWs) {
+                friendWs.ws.send(JSON.stringify({ type: "presence", userId: payload.sub, online: true }));
+              }
+            }
           } catch {
             ws.send(JSON.stringify({ type: "error", message: "Invalid token" }));
             ws.close();
@@ -100,7 +113,21 @@ export function createWsHandlers(db: Database) {
 
     close(ws: ServerWebSocket<WsData>) {
       if (ws.data.userId) {
-        onlineUsers.delete(ws.data.userId);
+        const userId = ws.data.userId;
+        onlineUsers.delete(userId);
+
+        // Broadcast offline to friends
+        const friends = db.query(
+          `SELECT CASE WHEN requester_id = ? THEN addressee_id ELSE requester_id END as friend_id
+           FROM friendships WHERE (requester_id = ? OR addressee_id = ?) AND status = 'accepted'`
+        ).all(userId, userId, userId) as Array<{friend_id: number}>;
+
+        for (const f of friends) {
+          const friendWs = onlineUsers.get(f.friend_id);
+          if (friendWs) {
+            friendWs.ws.send(JSON.stringify({ type: "presence", userId, online: false }));
+          }
+        }
       }
     },
   };

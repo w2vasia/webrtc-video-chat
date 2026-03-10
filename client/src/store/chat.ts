@@ -84,6 +84,14 @@ export function useChat() {
   }
 
   function setupListeners() {
+    wsClient.on("presence", (data) => {
+      setState("onlineUsers", (prev) => {
+        const next = new Set(prev);
+        data.online ? next.add(data.userId) : next.delete(data.userId);
+        return next;
+      });
+    });
+
     wsClient.on("chat", async (data) => {
       try {
         const sharedKey = await getSharedKey(data.from);
