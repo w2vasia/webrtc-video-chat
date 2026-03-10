@@ -28,9 +28,13 @@ export function messageRoutes(db: Database) {
     `;
     const params: any[] = [userId, friendId, friendId, userId];
 
-    if (beforeId) {
+    if (beforeId !== undefined) {
+      const beforeIdNum = Number(beforeId);
+      if (!Number.isInteger(beforeIdNum) || beforeIdNum <= 0) {
+        return c.json({ error: "Invalid before_id" }, 400);
+      }
       query += " AND id < ?";
-      params.push(Number(beforeId));
+      params.push(beforeIdNum);
     }
 
     query += " ORDER BY id DESC LIMIT ?";
