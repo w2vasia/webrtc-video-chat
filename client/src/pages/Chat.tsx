@@ -22,28 +22,31 @@ export default function Chat() {
     }
   });
 
+  let cleanupChat: (() => void) | undefined;
+  let cleanupCall: (() => void) | undefined;
+  const swHandler = (e: MessageEvent) => {
+    if (e.data?.type === "open-chat" && e.data.friendId) {
+      setActiveFriend(e.data.friendId);
+      setSidebarOpen(false);
+    }
+  };
+
   onMount(async () => {
     wsClient.connect(token()!);
     await initKeys();
-    const cleanupChat = setupListeners();
-    const cleanupCall = setupCallListeners();
+    cleanupChat = setupListeners();
+    cleanupCall = setupCallListeners();
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-    const swHandler = (e: MessageEvent) => {
-      if (e.data?.type === "open-chat" && e.data.friendId) {
-        setActiveFriend(e.data.friendId);
-        setSidebarOpen(false);
-      }
-    };
     navigator.serviceWorker?.addEventListener("message", swHandler);
+  });
 
-    onCleanup(() => {
-      cleanupChat();
-      cleanupCall();
-      navigator.serviceWorker?.removeEventListener("message", swHandler);
-      wsClient.disconnect();
-    });
+  onCleanup(() => {
+    cleanupChat?.();
+    cleanupCall?.();
+    navigator.serviceWorker?.removeEventListener("message", swHandler);
+    wsClient.disconnect();
   });
 
   return (
