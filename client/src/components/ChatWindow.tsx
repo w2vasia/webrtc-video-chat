@@ -4,7 +4,7 @@ import { useCall } from "../store/call";
 
 export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number) => void }) {
   const { state, sendMessage, loadHistory } = useChat();
-  const { callStatus, callTargetId, acceptCall, rejectCall } = useCall();
+  const { callStatus, callError, callTargetId, acceptCall, rejectCall } = useCall();
   const [input, setInput] = createSignal("");
   const [error, setError] = createSignal("");
   const [loadingMore, setLoadingMore] = createSignal(false);
@@ -97,6 +97,9 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
           <button class="call-btn accept" onClick={acceptCall}>Accept</button>
           <button class="call-btn end" onClick={rejectCall}>Decline</button>
         </div>
+      </Show>
+      <Show when={callError()}>
+        <p class="error" style="padding: 8px 16px">{callError()}</p>
       </Show>
       <div class="messages" ref={messagesContainer} onScroll={handleScroll}>
         <Show when={loadingMore()}>
