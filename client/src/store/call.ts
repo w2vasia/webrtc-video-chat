@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { WebRTCCall } from "../lib/webrtc";
 import { wsClient } from "../lib/ws";
 
-export type CallStatus = "idle" | "calling" | "incoming" | "connected";
+export type CallStatus = "idle" | "calling" | "incoming" | "ringing" | "connecting" | "connected" | "ended";
 
 const [callStatus, setCallStatus] = createSignal<CallStatus>("idle");
 const [activeCall, setActiveCall] = createSignal<WebRTCCall | null>(null);
@@ -27,8 +27,8 @@ export function useCall() {
     wsClient.on("call-answer", async (data) => {
       const call = activeCall();
       if (call) {
+        setCallStatus("connecting");
         await call.handleAnswer(data.answer);
-        setCallStatus("connected");
       }
     });
 
@@ -49,6 +49,7 @@ export function useCall() {
   async function startCall(targetId: number) {
     const call = new WebRTCCall(targetId);
     call.onRemoteStream = (s) => setRemoteStream(s);
+    call.onConnected = () => setCallStatus("connected");
     call.onEnded = () => endCall();
 
     const stream = await call.startLocalMedia();
@@ -65,6 +66,7 @@ export function useCall() {
 
     const call = new WebRTCCall(pendingSenderId);
     call.onRemoteStream = (s) => setRemoteStream(s);
+    call.onConnected = () => setCallStatus("connected");
     call.onEnded = () => endCall();
 
     const stream = await call.startLocalMedia();
@@ -79,7 +81,7 @@ export function useCall() {
     }
     pendingCandidates = [];
 
-    setCallStatus("connected");
+    setCallStatus("connecting");
     pendingOffer = null;
     pendingSenderId = null;
   }
@@ -101,8 +103,11 @@ export function useCall() {
     setActiveCall(null);
     setLocalStream(null);
     setRemoteStream(null);
-    setCallStatus("idle");
-    setCallTargetId(null);
+    setCallStatus("ended");
+    setTimeout(() => {
+      setCallStatus("idle");
+      setCallTargetId(null);
+    }, 1500);
   }
 
   return {

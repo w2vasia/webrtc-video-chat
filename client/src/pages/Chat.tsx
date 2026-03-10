@@ -44,7 +44,7 @@ export default function Chat() {
     <div class="flex h-[100dvh]">
       <ToastContainer />
 
-      <Show when={callStatus() === "calling" || callStatus() === "connecting" || callStatus() === "connected"}>
+      <Show when={callStatus() === "calling" || callStatus() === "connecting" || callStatus() === "connected" || callStatus() === "ended"}>
         <VideoCall />
       </Show>
 

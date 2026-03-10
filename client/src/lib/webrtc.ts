@@ -20,6 +20,7 @@ export class WebRTCCall {
   remoteStream = new MediaStream();
   targetId: number;
   onRemoteStream?: (stream: MediaStream) => void;
+  onConnected?: () => void;
   onEnded?: () => void;
   private pendingIceCandidates: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
@@ -41,7 +42,9 @@ export class WebRTCCall {
     };
 
     this.pc.onconnectionstatechange = () => {
-      if (this.pc.connectionState === "failed" || this.pc.connectionState === "disconnected") {
+      if (this.pc.connectionState === "connected") {
+        this.onConnected?.();
+      } else if (this.pc.connectionState === "failed" || this.pc.connectionState === "disconnected") {
         this.end();
       }
     };

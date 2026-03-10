@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Show } from "solid-js";
+import { createSignal, createEffect, onCleanup, Show } from "solid-js";
 import { useCall } from "../store/call";
 
 function bindStream(el: HTMLVideoElement, stream: MediaStream | null) {
@@ -21,7 +21,27 @@ export default function VideoCall() {
     calling: "Calling...",
     ringing: "Ringing...",
     connecting: "Connecting...",
+    ended: "Call ended",
   };
+
+  const [elapsed, setElapsed] = createSignal(0);
+  let timerInterval: ReturnType<typeof setInterval> | undefined;
+
+  createEffect(() => {
+    if (callStatus() === "connected") {
+      timerInterval = setInterval(() => setElapsed((e) => e + 1), 1000);
+    } else {
+      clearInterval(timerInterval);
+      timerInterval = undefined;
+      setElapsed(0);
+    }
+  });
+
+  onCleanup(() => clearInterval(timerInterval));
+
+  function formatTime(s: number) {
+    return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  }
 
   return (
     <div class="fixed inset-0 z-50 bg-black flex items-center justify-center">
@@ -33,6 +53,13 @@ export default function VideoCall() {
             <div class="text-white text-xl font-medium">
               {statusText[callStatus()] ?? "Connecting..."}
             </div>
+          </Show>
+        </div>
+
+        {/* Status/timer overlay */}
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/50 rounded-full text-white text-sm">
+          <Show when={callStatus() === "connected"} fallback={statusText[callStatus()] ?? "..."}>
+            {formatTime(elapsed())}
           </Show>
         </div>
 
