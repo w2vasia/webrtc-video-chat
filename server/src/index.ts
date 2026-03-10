@@ -20,7 +20,10 @@ const db = getDb("data/app.db");
 migrate(db);
 
 const app = new Hono();
-const corsOrigin = process.env.CLIENT_ORIGIN || (process.env.NODE_ENV === "production" ? "*" : "http://localhost:5173");
+if (!process.env.CLIENT_ORIGIN && process.env.NODE_ENV === "production") {
+  throw new Error("CLIENT_ORIGIN must be set in production");
+}
+const corsOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 app.use("*", cors({
   origin: corsOrigin,
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
