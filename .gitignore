@@ -1,7 +1,10 @@
 node_modules/
 dist/
+dev-dist/
 *.log
 .env
 .DS_Store
 data/
-.claude/.worktrees/
+.claude/
+.worktrees/
+package-lock.json

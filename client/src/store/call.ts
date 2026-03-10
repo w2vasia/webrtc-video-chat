@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import { WebRTCCall } from "../lib/webrtc";
 import { wsClient } from "../lib/ws";
 import { showToast } from "../components/Toast";
+import { startRingtone, stopRingtone } from "../lib/ringtone";
 
 export type CallStatus = "idle" | "calling" | "incoming" | "connecting" | "connected" | "ended";
 
@@ -10,20 +11,18 @@ const [activeCall, setActiveCall] = createSignal<WebRTCCall | null>(null);
 const [localStream, setLocalStream] = createSignal<MediaStream | null>(null);
 const [remoteStream, setRemoteStream] = createSignal<MediaStream | null>(null);
 const [callTargetId, setCallTargetId] = createSignal<number | null>(null);
+const [callError, setCallError] = createSignal<string>("");
 
 let pendingOffer: RTCSessionDescriptionInit | null = null;
 let pendingSenderId: number | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
-let callListenersRegistered = false;
 
 export function useCall() {
-  function setupCallListeners() {
-    if (callListenersRegistered) return;
-    callListenersRegistered = true;
-    wsClient.on("call-offer", async (data) => {
+  function setupCallListeners(): () => void {
+    const unsubs: (() => void)[] = [];
+    unsubs.push(wsClient.on("call-offer", async (data) => {
       const existing = activeCall();
       if (existing && data.iceRestart) {
-        // ICE restart — re-negotiate on existing call
         await existing.handleOffer(data.offer);
         return;
       }
@@ -32,75 +31,95 @@ export function useCall() {
       setCallStatus("incoming");
       pendingOffer = data.offer;
       pendingSenderId = data.senderId;
-    });
+      startRingtone();
+    }));
 
-    wsClient.on("call-answer", async (data) => {
+    unsubs.push(wsClient.on("call-answer", async (data) => {
       const call = activeCall();
       if (call) {
         setCallStatus("connecting");
         await call.handleAnswer(data.answer);
       }
-    });
+    }));
 
-    wsClient.on("ice-candidate", async (data) => {
+    unsubs.push(wsClient.on("ice-candidate", async (data) => {
       const call = activeCall();
       if (call) {
         await call.handleIceCandidate(data.candidate);
       } else {
         pendingCandidates.push(data.candidate);
       }
-    });
+    }));
 
-    wsClient.on("call-end", () => {
+    unsubs.push(wsClient.on("call-end", () => {
       endCall();
-    });
+    }));
+
+    return () => unsubs.forEach((fn) => fn());
   }
 
   async function startCall(targetId: number) {
-    const call = await WebRTCCall.create(targetId);
-    call.onRemoteStream = (s) => setRemoteStream(s);
-    call.onConnected = () => setCallStatus("connected");
-    call.onEnded = () => endCall();
-    call.onReconnecting = () => setCallStatus("connecting");
-    call.onFailed = () => showToast("Call lost", "error");
+    setCallError("");
+    try {
+      const call = await WebRTCCall.create(targetId);
+      call.onRemoteStream = (s) => setRemoteStream(s);
+      call.onConnected = () => setCallStatus("connected");
+      call.onEnded = () => endCall();
+      call.onReconnecting = () => setCallStatus("connecting");
+      call.onFailed = () => showToast("Call lost", "error");
 
-    const stream = await call.startLocalMedia();
-    setLocalStream(stream);
-    setActiveCall(call);
-    setCallTargetId(targetId);
-    setCallStatus("calling");
+      const stream = await call.startLocalMedia();
+      setLocalStream(stream);
+      setActiveCall(call);
+      setCallTargetId(targetId);
+      setCallStatus("calling");
 
-    await call.createOffer();
+      await call.createOffer();
+    } catch (e: any) {
+      console.error("Failed to start call", e);
+      setCallError(e?.message || "Failed to start call");
+      endCall();
+    }
   }
 
   async function acceptCall() {
     if (!pendingSenderId || !pendingOffer) return;
+    stopRingtone();
 
-    const call = await WebRTCCall.create(pendingSenderId);
-    call.onRemoteStream = (s) => setRemoteStream(s);
-    call.onConnected = () => setCallStatus("connected");
-    call.onEnded = () => endCall();
-    call.onReconnecting = () => setCallStatus("connecting");
-    call.onFailed = () => showToast("Call lost", "error");
-
-    const stream = await call.startLocalMedia();
-    setLocalStream(stream);
-    setActiveCall(call);
-
-    await call.handleOffer(pendingOffer);
-
-    // apply ICE candidates that arrived before accept
-    for (const c of pendingCandidates) {
-      await call.handleIceCandidate(c);
-    }
-    pendingCandidates = [];
-
-    setCallStatus("connecting");
+    const senderId = pendingSenderId;
+    const offer = pendingOffer;
     pendingOffer = null;
     pendingSenderId = null;
+
+    try {
+      const call = await WebRTCCall.create(senderId);
+      call.onRemoteStream = (s) => setRemoteStream(s);
+      call.onConnected = () => setCallStatus("connected");
+      call.onEnded = () => endCall();
+      call.onReconnecting = () => setCallStatus("connecting");
+      call.onFailed = () => showToast("Call lost", "error");
+
+      const stream = await call.startLocalMedia();
+      setLocalStream(stream);
+      setActiveCall(call);
+
+      await call.handleOffer(offer);
+
+      for (const c of pendingCandidates) {
+        await call.handleIceCandidate(c);
+      }
+      pendingCandidates = [];
+
+      setCallStatus("connecting");
+    } catch (e: any) {
+      console.error("Failed to accept call", e);
+      setCallError(e?.message || "Failed to accept call");
+      endCall();
+    }
   }
 
   function rejectCall() {
+    stopRingtone();
     if (pendingSenderId) wsClient.send({ type: "call-end", targetId: pendingSenderId });
     setCallStatus("idle");
     setCallTargetId(null);
@@ -110,11 +129,16 @@ export function useCall() {
 
   function endCall() {
     if (callStatus() === "idle" || callStatus() === "ended") return;
+    stopRingtone();
+    setCallError("");
     if (callStatus() === "connected") {
       showToast("Call ended", "info");
     }
     const call = activeCall();
-    call?.end();
+    if (call) {
+      call.onEnded = undefined; // prevent re-entrant loop
+      call.end();
+    }
     setActiveCall(null);
     setLocalStream(null);
     setRemoteStream(null);
@@ -127,6 +151,7 @@ export function useCall() {
 
   return {
     callStatus,
+    callError,
     activeCall,
     localStream,
     remoteStream,

@@ -61,10 +61,12 @@ class WsClient {
     this.pendingMessages.clear();
   }
 
-  send(data: any) {
+  send(data: any): boolean {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
+      return true;
     }
+    return false;
   }
 
   queueMessage(clientId: string, payload: object) {

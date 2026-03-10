@@ -1,4 +1,4 @@
-import { onMount, Show, createSignal, createEffect } from "solid-js";
+import { onMount, onCleanup, Show, createSignal, createEffect } from "solid-js";
 import { useAuth } from "../store/auth";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
@@ -10,6 +10,7 @@ import ChatWindow from "../components/ChatWindow";
 import VideoCall from "../components/VideoCall";
 import IncomingCall from "../components/IncomingCall";
 import { ToastContainer } from "../components/Toast";
+
 
 export default function Chat() {
   const { user, token, logout } = useAuth();
@@ -24,20 +25,31 @@ export default function Chat() {
     }
   });
 
+  let cleanupChat: (() => void) | undefined;
+  let cleanupCall: (() => void) | undefined;
+  const swHandler = (e: MessageEvent) => {
+    if (e.data?.type === "open-chat" && e.data.friendId) {
+      setActiveFriend(e.data.friendId);
+      setSidebarOpen(false);
+    }
+  };
+
   onMount(async () => {
     wsClient.connect(token()!);
     await initKeys();
-    setupListeners();
-    setupCallListeners();
+    cleanupChat = setupListeners();
+    cleanupCall = setupCallListeners();
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-    navigator.serviceWorker?.addEventListener("message", (e) => {
-      if (e.data?.type === "open-chat" && e.data.friendId) {
-        setActiveFriend(e.data.friendId);
-        setSidebarOpen(false);
-      }
-    });
+    navigator.serviceWorker?.addEventListener("message", swHandler);
+  });
+
+  onCleanup(() => {
+    cleanupChat?.();
+    cleanupCall?.();
+    navigator.serviceWorker?.removeEventListener("message", swHandler);
+    wsClient.disconnect();
   });
 
   return (

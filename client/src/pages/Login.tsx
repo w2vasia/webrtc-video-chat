@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, A } from "@solidjs/router";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
 

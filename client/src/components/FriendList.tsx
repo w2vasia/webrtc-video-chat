@@ -1,4 +1,4 @@
-import { createResource, createEffect, For, Show } from "solid-js";
+import { createResource, createEffect, onCleanup, onMount, For, Show } from "solid-js";
 import { api } from "../lib/api";
 import { useChat } from "../store/chat";
 
@@ -22,7 +22,10 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
     if (f) registerFriendNames(f);
   });
 
-  setInterval(refetch, 30000);
+  onMount(() => {
+    const intervalId = setInterval(refetch, 30000);
+    onCleanup(() => clearInterval(intervalId));
+  });
 
   return (
     <div class="flex-1 overflow-y-auto" onClick={(e) => { if (e.target === e.currentTarget) props.onDeselect(); }}>

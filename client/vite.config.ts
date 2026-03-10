@@ -25,13 +25,6 @@ export default defineConfig({
       workbox: {
         importScripts: ["/sw-custom.js"],
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\/api\//,
-            handler: "NetworkFirst",
-            options: { cacheName: "api-cache", expiration: { maxEntries: 50 } },
-          },
-        ],
       },
     }),
   ],
