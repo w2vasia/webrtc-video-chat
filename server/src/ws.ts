@@ -15,6 +15,7 @@ export interface WsData {
 }
 
 const onlineUsers = new Map<number, WsUser>();
+const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function getOnlineUsers() {
   return onlineUsers;
@@ -102,7 +103,19 @@ export function createWsHandlers(db: Database) {
         case "typing": {
           const target = onlineUsers.get(data.to);
           if (target) {
-            target.ws.send(JSON.stringify({ type: "typing", from: userId, isTyping: !!data.isTyping }));
+            const isTyping = !!data.isTyping;
+            target.ws.send(JSON.stringify({ type: "typing", from: userId, isTyping }));
+            const key = `${userId}->${data.to}`;
+            clearTimeout(typingTimers.get(key));
+            if (isTyping) {
+              typingTimers.set(key, setTimeout(() => {
+                typingTimers.delete(key);
+                const t = onlineUsers.get(data.to);
+                if (t) t.ws.send(JSON.stringify({ type: "typing", from: userId, isTyping: false }));
+              }, 5000));
+            } else {
+              typingTimers.delete(key);
+            }
           }
           break;
         }
