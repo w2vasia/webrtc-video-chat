@@ -10,10 +10,10 @@
     "@solidjs/router": "^0.14"
   },
   "devDependencies": {
+    "typescript": "^5",
     "vite": "^6",
-    "vite-plugin-solid": "^2",
     "vite-plugin-pwa": "^0.21",
-    "vitest": "^3",
-    "typescript": "^5"
+    "vite-plugin-solid": "^2",
+    "vitest": "^3"
   }
 }

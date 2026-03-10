@@ -8,7 +8,7 @@ export function messageRoutes(db: Database) {
   app.get("/:friendId", async (c) => {
     const userId = c.get("userId") as number;
     const friendId = Number(c.req.param("friendId"));
-    const before = c.req.query("before"); // cursor: timestamp
+    const beforeId = c.req.query("before_id"); // cursor: message id
     const limit = Math.min(Number(c.req.query("limit")) || 50, 100);
 
     let query = `
@@ -18,12 +18,12 @@ export function messageRoutes(db: Database) {
     `;
     const params: any[] = [userId, friendId, friendId, userId];
 
-    if (before) {
-      query += " AND created_at < ?";
-      params.push(Number(before));
+    if (beforeId) {
+      query += " AND id < ?";
+      params.push(Number(beforeId));
     }
 
-    query += " ORDER BY created_at DESC LIMIT ?";
+    query += " ORDER BY id DESC LIMIT ?";
     params.push(limit);
 
     const rows = db.query(query).all(...params) as Array<{

@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
@@ -12,8 +13,8 @@ export default defineConfig({
         name: "Whisper — Encrypted Chat",
         short_name: "Whisper",
         description: "E2E encrypted chat & video calls",
-        theme_color: "#1a1a2e",
-        background_color: "#1a1a2e",
+        theme_color: "#f5f6fa",
+        background_color: "#f5f6fa",
         display: "standalone",
         icons: [
           { src: "icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
@@ -21,6 +22,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        importScripts: ["/sw-custom.js"],
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         runtimeCaching: [
           {
@@ -33,6 +35,7 @@ export default defineConfig({
     }),
   ],
   server: {
+    allowedHosts: true,
     proxy: {
       "/api": "http://localhost:3000",
       "/ws": { target: "http://localhost:3000", ws: true, rewriteWsOrigin: true },
