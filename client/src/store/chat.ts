@@ -46,6 +46,7 @@ const [state, setState] = createStore<ChatState>({
 let myKeyPair: CryptoKeyPair | null = null;
 const loadingSet = new Set<string>();
 const historyLoaded = new Set<number>();
+const pendingMsgMap = new Map<string, number>(); // clientId → friendId
 
 let _resetFn: (() => void) | null = null;
 export function resetChat() { _resetFn?.(); }
@@ -126,6 +127,8 @@ export function useChat() {
     const { ciphertext, nonce } = await encrypt(sharedKey, text);
 
     const clientId = crypto.randomUUID();
+    pendingMsgMap.set(clientId, friendId);
+
     const msg: ChatMessage = {
       id: clientId,
       from: 0,
@@ -139,6 +142,7 @@ export function useChat() {
 
     const sent = wsClient.send({ type: "chat", to: friendId, ciphertext, nonce, clientId });
     if (!sent) {
+      pendingMsgMap.delete(clientId);
       setState("conversations", friendId, (msgs) =>
         msgs.map((m) => (m.id === clientId ? { ...m, pending: false, failed: true } : m)),
       );
@@ -197,13 +201,14 @@ export function useChat() {
     }));
 
     unsubs.push(wsClient.on("chat-ack", (data) => {
-      // Find conversation containing this clientId and mark delivered
-      for (const [fid, msgs] of Object.entries(state.conversations)) {
-        const idx = msgs.findIndex((m) => m.id === data.clientId);
-        if (idx !== -1) {
-          setState("conversations", Number(fid), idx, { pending: false, id: String(data.serverId) });
-          break;
-        }
+      const fid = pendingMsgMap.get(data.clientId);
+      if (fid === undefined) return;
+      pendingMsgMap.delete(data.clientId);
+      const msgs = state.conversations[fid];
+      if (!msgs) return;
+      const idx = msgs.findIndex((m) => m.id === data.clientId);
+      if (idx !== -1) {
+        setState("conversations", fid, idx, { pending: false, id: String(data.serverId) });
       }
     }));
 
@@ -226,6 +231,7 @@ export function useChat() {
     myKeyPair = null;
     loadingSet.clear();
     historyLoaded.clear();
+    pendingMsgMap.clear();
     setState({
       conversations: {},
       activeFriend: null,
