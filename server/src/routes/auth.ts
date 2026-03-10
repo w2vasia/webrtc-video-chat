@@ -11,8 +11,17 @@ export function authRoutes(db: Database) {
     if (!email || !password || !displayName) {
       return c.json({ error: "Missing required fields" }, 400);
     }
-    if (password.length < 8) {
-      return c.json({ error: "Password must be at least 8 characters" }, 400);
+    if (typeof email !== "string" || typeof password !== "string" || typeof displayName !== "string") {
+      return c.json({ error: "Invalid field types" }, 400);
+    }
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return c.json({ error: "Invalid email format" }, 400);
+    }
+    if (displayName.length > 100) {
+      return c.json({ error: "Display name too long" }, 400);
+    }
+    if (password.length < 8 || password.length > 256) {
+      return c.json({ error: "Password must be 8-256 characters" }, 400);
     }
 
     const existing = db.query("SELECT id FROM users WHERE email = ?").get(email);

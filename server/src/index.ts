@@ -28,6 +28,7 @@ app.use("*", logger());
 
 // Public routes
 app.route("/api/auth", authRoutes(db));
+app.get("/api/health", (c) => c.json({ ok: true }, 200));
 
 // Protected routes
 app.use("/api/*", authMiddleware());
@@ -35,9 +36,6 @@ app.route("/api/friends", friendRoutes(db));
 app.route("/api/keys", keyRoutes(db));
 app.route("/api/push", pushRoutes(db));
 app.route("/api/messages", messageRoutes(db));
-
-// Health check
-app.get("/api/health", (c) => c.json({ ok: true }, 200));
 
 // In production, serve client build
 const clientDist = join(import.meta.dir, "../../client/dist");

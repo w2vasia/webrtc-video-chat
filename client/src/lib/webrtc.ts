@@ -23,6 +23,7 @@ export class WebRTCCall {
   onEnded?: () => void;
   private pendingIceCandidates: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(targetId: number) {
     this.targetId = targetId;
@@ -41,8 +42,11 @@ export class WebRTCCall {
     };
 
     this.pc.onconnectionstatechange = () => {
-      if (this.pc.connectionState === "failed" || this.pc.connectionState === "disconnected") {
+      if (this.disconnectTimer) { clearTimeout(this.disconnectTimer); this.disconnectTimer = null; }
+      if (this.pc.connectionState === "failed") {
         this.end();
+      } else if (this.pc.connectionState === "disconnected") {
+        this.disconnectTimer = setTimeout(() => this.end(), 8000);
       }
     };
   }

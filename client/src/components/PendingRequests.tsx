@@ -18,13 +18,21 @@ export default function PendingRequests() {
   onCleanup(() => clearInterval(intervalId));
 
   async function accept(friendshipId: number) {
-    await api("/api/friends/accept", { method: "POST", body: { friendshipId } });
-    refetch();
+    try {
+      await api("/api/friends/accept", { method: "POST", body: { friendshipId } });
+      refetch();
+    } catch (e) {
+      console.error("Failed to accept request", e);
+    }
   }
 
   async function reject(friendshipId: number) {
-    await api("/api/friends/reject", { method: "POST", body: { friendshipId } });
-    refetch();
+    try {
+      await api("/api/friends/reject", { method: "POST", body: { friendshipId } });
+      refetch();
+    } catch (e) {
+      console.error("Failed to reject request", e);
+    }
   }
 
   return (
