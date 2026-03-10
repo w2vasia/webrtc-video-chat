@@ -10,6 +10,8 @@
     "@solidjs/router": "^0.14"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "tailwindcss": "^4.2.1",
     "typescript": "^5",
     "vite": "^6",
     "vite-plugin-pwa": "^0.21",
