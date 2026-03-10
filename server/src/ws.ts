@@ -46,7 +46,7 @@ export function createWsHandlers(db: Database) {
               .all(payload.sub) as Array<{ id: number; sender_id: number; ciphertext: string; nonce: string; created_at: number }>;
 
             for (const msg of queued) {
-              ws.send(JSON.stringify({ type: "chat", from: msg.sender_id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
+              ws.send(JSON.stringify({ type: "chat", from: msg.sender_id, id: msg.id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
               db.query("UPDATE messages SET delivered = 1 WHERE id = ?").run(msg.id);
             }
 
