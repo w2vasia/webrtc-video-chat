@@ -23,6 +23,7 @@ interface ChatState {
   unreadCounts: Record<number, number>;
   friendInfo: Record<number, { name: string; email: string }>;
   hasMore: Record<number, boolean>;
+  typingUsers: Record<number, boolean>;
 }
 
 function loadUnreadCounts(): Record<number, number> {
@@ -40,6 +41,7 @@ const [state, setState] = createStore<ChatState>({
   unreadCounts: loadUnreadCounts(),
   friendInfo: {},
   hasMore: {},
+  typingUsers: {},
 });
 
 let myKeyPair: CryptoKeyPair | null = null;

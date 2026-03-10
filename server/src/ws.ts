@@ -102,7 +102,7 @@ export function createWsHandlers(db: Database) {
         case "typing": {
           const target = onlineUsers.get(data.to);
           if (target) {
-            target.ws.send(JSON.stringify({ type: "typing", from: userId }));
+            target.ws.send(JSON.stringify({ type: "typing", from: userId, isTyping: !!data.isTyping }));
           }
           break;
         }
