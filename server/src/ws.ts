@@ -77,9 +77,20 @@ export function createWsHandlers(db: Database) {
 
       const userId = ws.data.userId!;
 
+      const isFriend = (targetId: number) => {
+        const row = db.query(
+          "SELECT 1 FROM friendships WHERE ((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = 'accepted'"
+        ).get(userId, targetId, targetId, userId);
+        return !!row;
+      };
+
       switch (data.type) {
         case "chat": {
           if (!data.to || !data.ciphertext || !data.nonce) break;
+          if (!isFriend(data.to)) {
+            ws.send(JSON.stringify({ type: "error", message: "Not friends" }));
+            break;
+          }
           const recipient = onlineUsers.get(data.to);
           const timestamp = Math.floor(Date.now() / 1000);
           const msg = { type: "chat", from: userId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp };
@@ -102,6 +113,7 @@ export function createWsHandlers(db: Database) {
         case "call-answer":
         case "ice-candidate":
         case "call-end": {
+          if (!data.targetId || !isFriend(data.targetId)) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ ...data, senderId: userId }));
@@ -110,6 +122,7 @@ export function createWsHandlers(db: Database) {
         }
 
         case "typing": {
+          if (!data.to || !isFriend(data.to)) break;
           const target = onlineUsers.get(data.to);
           if (target) {
             target.ws.send(JSON.stringify({ type: "typing", from: userId }));

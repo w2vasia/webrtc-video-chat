@@ -1,4 +1,4 @@
-import { createResource, For, Show } from "solid-js";
+import { createResource, onCleanup, For, Show } from "solid-js";
 import { api } from "../lib/api";
 
 interface PendingRequest {
@@ -14,7 +14,8 @@ export default function PendingRequests() {
     return res.requests as PendingRequest[];
   });
 
-  setInterval(refetch, 15000);
+  const intervalId = setInterval(refetch, 15000);
+  onCleanup(() => clearInterval(intervalId));
 
   async function accept(friendshipId: number) {
     await api("/api/friends/accept", { method: "POST", body: { friendshipId } });

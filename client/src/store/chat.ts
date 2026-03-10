@@ -100,7 +100,9 @@ export function useChat() {
         try {
           const text = await decrypt(sharedKey, m.ciphertext, m.nonce);
           msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp });
-        } catch {}
+        } catch {
+          msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text: "[Unable to decrypt]", timestamp: m.timestamp });
+        }
       }
       if (!beforeId) historyLoaded.add(friendId);
       setState("hasMore", friendId, res.messages.length >= 50);
@@ -140,16 +142,17 @@ export function useChat() {
     }
   }
 
-  function setupListeners() {
-    wsClient.on("presence", (data) => {
+  function setupListeners(): () => void {
+    const unsubs: (() => void)[] = [];
+    unsubs.push(wsClient.on("presence", (data) => {
       setState("onlineUsers", (prev) => {
         const next = new Set(prev);
         data.online ? next.add(data.userId) : next.delete(data.userId);
         return next;
       });
-    });
+    }));
 
-    wsClient.on("chat", async (data) => {
+    unsubs.push(wsClient.on("chat", async (data) => {
       try {
         const sharedKey = await getSharedKey(data.from);
         const text = await decrypt(sharedKey, data.ciphertext, data.nonce);
@@ -181,12 +184,16 @@ export function useChat() {
             });
           }
         }
-      } catch (err) {
-        console.error("Failed to decrypt message", err);
+      } catch {
+        const msg: ChatMessage = {
+          id: data.id ? String(data.id) : crypto.randomUUID(),
+          from: data.from, to: 0, text: "[Unable to decrypt]", timestamp: data.timestamp,
+        };
+        setState("conversations", data.from, (prev = []) => [...prev, msg]);
       }
-    });
+    }));
 
-    wsClient.on("chat-ack", (data) => {
+    unsubs.push(wsClient.on("chat-ack", (data) => {
       // Find conversation containing this clientId and mark delivered
       for (const [fid, msgs] of Object.entries(state.conversations)) {
         const idx = msgs.findIndex((m) => m.id === data.clientId);
@@ -195,7 +202,9 @@ export function useChat() {
           break;
         }
       }
-    });
+    }));
+
+    return () => unsubs.forEach((fn) => fn());
   }
 
   function setActiveFriend(id: number | null) {

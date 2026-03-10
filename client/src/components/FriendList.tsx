@@ -1,4 +1,4 @@
-import { createResource, createEffect, For, Show } from "solid-js";
+import { createResource, createEffect, onCleanup, For, Show } from "solid-js";
 import { api } from "../lib/api";
 import { useChat } from "../store/chat";
 
@@ -22,7 +22,8 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
     if (f) registerFriendNames(f);
   });
 
-  setInterval(refetch, 30000);
+  const intervalId = setInterval(refetch, 30000);
+  onCleanup(() => clearInterval(intervalId));
 
   return (
     <div class="friend-list" onClick={(e) => { if (e.target === e.currentTarget) props.onDeselect(); }}>
@@ -40,7 +41,7 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
             onClick={() => props.onSelect(friend.id)}
           >
             <div class="avatar-wrapper">
-              <div class="friend-avatar">{friend.displayName[0].toUpperCase()}</div>
+              <div class="friend-avatar">{(friend.displayName[0] || "?").toUpperCase()}</div>
               <div class={`status-dot ${props.onlineUsers.has(friend.id) ? "online" : ""}`} />
             </div>
             <div class="friend-info">

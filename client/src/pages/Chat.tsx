@@ -1,4 +1,4 @@
-import { onMount, Show, createSignal, createEffect } from "solid-js";
+import { onMount, onCleanup, Show, createSignal, createEffect } from "solid-js";
 import { useAuth } from "../store/auth";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
@@ -27,16 +27,24 @@ export default function Chat() {
   onMount(async () => {
     wsClient.connect(token()!);
     await initKeys();
-    setupListeners();
-    setupCallListeners();
+    const cleanupChat = setupListeners();
+    const cleanupCall = setupCallListeners();
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-    navigator.serviceWorker?.addEventListener("message", (e) => {
+    const swHandler = (e: MessageEvent) => {
       if (e.data?.type === "open-chat" && e.data.friendId) {
         setActiveFriend(e.data.friendId);
         setSidebarOpen(false);
       }
+    };
+    navigator.serviceWorker?.addEventListener("message", swHandler);
+
+    onCleanup(() => {
+      cleanupChat();
+      cleanupCall();
+      navigator.serviceWorker?.removeEventListener("message", swHandler);
+      wsClient.disconnect();
     });
   });
 

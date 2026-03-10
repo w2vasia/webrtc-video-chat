@@ -15,35 +15,38 @@ let pendingSenderId: number | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
 
 export function useCall() {
-  function setupCallListeners() {
-    wsClient.on("call-offer", async (data) => {
+  function setupCallListeners(): () => void {
+    const unsubs: (() => void)[] = [];
+    unsubs.push(wsClient.on("call-offer", async (data) => {
       pendingCandidates = [];
       setCallTargetId(data.senderId);
       setCallStatus("incoming");
       pendingOffer = data.offer;
       pendingSenderId = data.senderId;
-    });
+    }));
 
-    wsClient.on("call-answer", async (data) => {
+    unsubs.push(wsClient.on("call-answer", async (data) => {
       const call = activeCall();
       if (call) {
         await call.handleAnswer(data.answer);
         setCallStatus("connected");
       }
-    });
+    }));
 
-    wsClient.on("ice-candidate", async (data) => {
+    unsubs.push(wsClient.on("ice-candidate", async (data) => {
       const call = activeCall();
       if (call) {
         await call.handleIceCandidate(data.candidate);
       } else {
         pendingCandidates.push(data.candidate);
       }
-    });
+    }));
 
-    wsClient.on("call-end", () => {
+    unsubs.push(wsClient.on("call-end", () => {
       endCall();
-    });
+    }));
+
+    return () => unsubs.forEach((fn) => fn());
   }
 
   async function startCall(targetId: number) {
