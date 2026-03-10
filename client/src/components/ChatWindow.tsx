@@ -31,7 +31,8 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
     const msgs = state.conversations[props.friendId] ?? [];
     const unread = msgs.filter(m => m.from !== 0 && !m.readAt && m.serverId);
     for (const m of unread) {
-      wsClient.send({ type: "read", messageId: Number(m.serverId), senderId: props.friendId });
+      const serverId = m.serverId!;
+      wsClient.send({ type: "read", messageId: Number(serverId), senderId: props.friendId });
       setState("conversations", props.friendId, (prev) =>
         prev.map(msg => msg.id === m.id ? { ...msg, readAt: Date.now() } : msg)
       );

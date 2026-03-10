@@ -149,7 +149,11 @@ export function useChat() {
     wsClient.send({ type: "typing", to: friendId, isTyping });
   }
 
+  let listenersRegistered = false;
   function setupListeners() {
+    if (listenersRegistered) return;
+    listenersRegistered = true;
+
     wsClient.on("chat-ack", (data) => {
       setState("conversations", (convs) => {
         const updated: typeof convs = {};
