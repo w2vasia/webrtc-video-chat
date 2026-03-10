@@ -137,7 +137,8 @@ export function useChat() {
     };
 
     setState("conversations", friendId, (prev = []) => [...prev, msg]);
-    wsClient.send({ type: "chat", to: friendId, ciphertext, nonce });
+    const clientId = msg.id; // use the UUID as clientId
+    wsClient.send({ type: "chat", to: friendId, ciphertext, nonce, clientId });
 
     setState("conversations", friendId, (msgs) =>
       msgs.map((m) => (m.id === msg.id ? { ...m, pending: false } : m)),
@@ -149,6 +150,18 @@ export function useChat() {
   }
 
   function setupListeners() {
+    wsClient.on("chat-ack", (data) => {
+      setState("conversations", (convs) => {
+        const updated: typeof convs = {};
+        for (const [fid, msgs] of Object.entries(convs)) {
+          updated[Number(fid)] = msgs.map(m =>
+            m.id === data.clientId ? { ...m, serverId: String(data.serverId), timestamp: data.timestamp } : m
+          );
+        }
+        return updated;
+      });
+    });
+
     wsClient.on("read", (data) => {
       for (const friendId of Object.keys(state.conversations)) {
         setState("conversations", Number(friendId), (msgs) =>
@@ -180,6 +193,7 @@ export function useChat() {
           to: 0,
           text,
           timestamp: data.timestamp,
+          serverId: data.id ? String(data.id) : undefined,
         };
 
         setState("conversations", data.from, (prev = []) => [...prev, msg]);
