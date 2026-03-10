@@ -46,7 +46,7 @@ export default function VideoCall() {
           <button
             class={`w-12 h-12 rounded-full flex items-center justify-center text-white border-0 cursor-pointer transition-colors ${videoOn() ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"}`}
             onClick={() => { const on = activeCall()?.toggleVideo(); setVideoOn(!!on); }}
-            aria-pressed={!videoOn()}
+            aria-pressed={!videoOn() ? "true" : "false"}
             title={videoOn() ? "Turn off camera" : "Turn on camera"}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -59,7 +59,7 @@ export default function VideoCall() {
           <button
             class={`w-12 h-12 rounded-full flex items-center justify-center text-white border-0 cursor-pointer transition-colors ${audioOn() ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"}`}
             onClick={() => { const on = activeCall()?.toggleAudio(); setAudioOn(!!on); }}
-            aria-pressed={!audioOn()}
+            aria-pressed={!audioOn() ? "true" : "false"}
             title={audioOn() ? "Mute microphone" : "Unmute microphone"}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
