@@ -1,18 +1,15 @@
 import { wsClient } from "./ws";
 
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    // TURN relay — required for cellular/symmetric NAT
-    ...(import.meta.env.VITE_TURN_URL ? [{
-      urls: import.meta.env.VITE_TURN_URL,
-      username: import.meta.env.VITE_TURN_USERNAME || "",
-      credential: import.meta.env.VITE_TURN_CREDENTIAL || "",
-    }] : []),
-  ],
-  iceCandidatePoolSize: 10,
-};
+async function getIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("/api/ice-servers", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (res.ok) return res.json();
+  } catch {}
+  return [{ urls: "stun:stun.l.google.com:19302" }];
+}
 
 export class WebRTCCall {
   pc: RTCPeerConnection;
@@ -25,9 +22,14 @@ export class WebRTCCall {
   private pendingIceCandidates: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
 
-  constructor(targetId: number) {
+  static async create(targetId: number): Promise<WebRTCCall> {
+    const iceServers = await getIceServers();
+    return new WebRTCCall(targetId, { iceServers, iceCandidatePoolSize: 10 });
+  }
+
+  constructor(targetId: number, config?: RTCConfiguration) {
     this.targetId = targetId;
-    this.pc = new RTCPeerConnection(ICE_SERVERS);
+    this.pc = new RTCPeerConnection(config ?? { iceServers: [{ urls: "stun:stun.l.google.com:19302" }], iceCandidatePoolSize: 10 });
 
     this.pc.ontrack = (e) => {
       this.remoteStream.addTrack(e.track);

@@ -7,6 +7,7 @@ import { friendRoutes } from "./routes/friends";
 import { keyRoutes } from "./routes/keys";
 import { pushRoutes } from "./routes/push";
 import { messageRoutes } from "./routes/messages";
+import { iceRoutes } from "./routes/ice";
 import { authMiddleware } from "./middleware/auth";
 import { createWsHandlers, type WsData } from "./ws";
 import { existsSync, mkdirSync } from "fs";
@@ -31,6 +32,7 @@ app.route("/api/friends", friendRoutes(db));
 app.route("/api/keys", keyRoutes(db));
 app.route("/api/push", pushRoutes(db));
 app.route("/api/messages", messageRoutes(db));
+app.route("/api/ice-servers", iceRoutes());
 
 // Health check
 app.get("/api/health", (c) => c.json({ ok: true }, 200));

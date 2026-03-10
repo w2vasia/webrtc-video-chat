@@ -48,7 +48,7 @@ export function useCall() {
   }
 
   async function startCall(targetId: number) {
-    const call = new WebRTCCall(targetId);
+    const call = await WebRTCCall.create(targetId);
     call.onRemoteStream = (s) => setRemoteStream(s);
     call.onConnected = () => setCallStatus("connected");
     call.onEnded = () => endCall();
@@ -65,7 +65,7 @@ export function useCall() {
   async function acceptCall() {
     if (!pendingSenderId || !pendingOffer) return;
 
-    const call = new WebRTCCall(pendingSenderId);
+    const call = await WebRTCCall.create(pendingSenderId);
     call.onRemoteStream = (s) => setRemoteStream(s);
     call.onConnected = () => setCallStatus("connected");
     call.onEnded = () => endCall();
