@@ -110,4 +110,33 @@ describe("POST /api/auth/login", () => {
     });
     expect(res.status).toBe(401);
   });
+
+  it("returns same error message for unknown email vs wrong password", async () => {
+    const { app } = setup();
+    await app.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "test@example.com",
+        password: "securepass123",
+        displayName: "Test",
+      }),
+    });
+    const res1 = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "nobody@nowhere.com", password: "wrongpassword" }),
+    });
+    const res2 = await app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@example.com", password: "wrongpassword" }),
+    });
+    expect(res1.status).toBe(401);
+    expect(res2.status).toBe(401);
+    const b1 = await res1.json();
+    const b2 = await res2.json();
+    expect(b1.error).toBe("Invalid credentials");
+    expect(b2.error).toBe("Invalid credentials");
+  });
 });

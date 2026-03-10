@@ -57,6 +57,8 @@ export function authRoutes(db: Database) {
       .get(email) as { id: number; email: string; password_hash: string; display_name: string } | null;
 
     if (!user) {
+      // Run dummy verify to prevent user enumeration via timing
+      await Bun.password.verify("dummy", "$argon2id$v=19$m=65536,t=2,p=1$ysNsBe9+5I8eyEPLbcGMBbzvjpbbe0uVqSSXXB4lawY$YOmeeLCwQerRNVH8OyFNseZgzgokxmoDc/KbFlIzuoE");
       return c.json({ error: "Invalid credentials" }, 401);
     }
 
