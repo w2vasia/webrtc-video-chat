@@ -6,7 +6,7 @@ async function getIceServers(): Promise<RTCIceServer[]> {
     const res = await fetch("/api/ice-servers", {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (res.ok) return res.json();
+    if (res.ok) return await res.json();
   } catch {}
   return [{ urls: "stun:stun.l.google.com:19302" }];
 }
