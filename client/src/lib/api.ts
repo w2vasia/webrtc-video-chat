@@ -10,7 +10,11 @@ export async function api(path: string, opts: { method?: string; body?: any } = 
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
 
+  if (!res.ok) {
+    let errMsg = `HTTP ${res.status}`;
+    try { const body = await res.json(); errMsg = body.error || errMsg; } catch {}
+    throw new Error(errMsg);
+  }
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
