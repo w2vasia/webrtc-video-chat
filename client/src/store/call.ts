@@ -20,6 +20,10 @@ export function useCall() {
   function setupCallListeners(): () => void {
     const unsubs: (() => void)[] = [];
     unsubs.push(wsClient.on("call-offer", async (data) => {
+      if (callStatus() !== "idle") {
+        wsClient.send({ type: "call-end", targetId: data.senderId });
+        return;
+      }
       pendingCandidates = [];
       setCallTargetId(data.senderId);
       setCallStatus("incoming");
@@ -40,7 +44,7 @@ export function useCall() {
       const call = activeCall();
       if (call) {
         await call.handleIceCandidate(data.candidate);
-      } else {
+      } else if (pendingCandidates.length < 100) {
         pendingCandidates.push(data.candidate);
       }
     }));
