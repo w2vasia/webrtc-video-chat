@@ -142,6 +142,10 @@ export function useChat() {
     );
   }
 
+  function sendTyping(friendId: number, isTyping: boolean) {
+    wsClient.send({ type: "typing", to: friendId, isTyping });
+  }
+
   function setupListeners() {
     wsClient.on("presence", (data) => {
       setState("onlineUsers", (prev) => {
@@ -149,6 +153,10 @@ export function useChat() {
         data.online ? next.add(data.userId) : next.delete(data.userId);
         return next;
       });
+    });
+
+    wsClient.on("typing", (data) => {
+      setState("typingUsers", data.from, !!data.isTyping);
     });
 
     wsClient.on("chat", async (data) => {
@@ -206,6 +214,7 @@ export function useChat() {
     setState,
     initKeys,
     sendMessage,
+    sendTyping,
     loadHistory,
     setupListeners,
     setActiveFriend,

@@ -1,9 +1,9 @@
-import { createSignal, For, createEffect, Show } from "solid-js";
+import { createSignal, For, createEffect, Show, onCleanup } from "solid-js";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
 
 export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number) => void }) {
-  const { state, sendMessage, loadHistory } = useChat();
+  const { state, sendMessage, sendTyping, loadHistory } = useChat();
   const { callStatus, callTargetId, acceptCall, rejectCall } = useCall();
   const [input, setInput] = createSignal("");
   const [error, setError] = createSignal("");
@@ -11,6 +11,18 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
   let messagesEnd: HTMLDivElement | undefined;
   let messagesContainer: HTMLDivElement | undefined;
   let shouldScrollToBottom = true;
+  let typingTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function handleInput() {
+    sendTyping(props.friendId, true);
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => sendTyping(props.friendId, false), 2000);
+  }
+
+  onCleanup(() => {
+    clearTimeout(typingTimer);
+    sendTyping(props.friendId, false);
+  });
 
   const messages = () => state.conversations[props.friendId] || [];
 
@@ -123,6 +135,13 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
             </div>
           )}
         </For>
+        <Show when={state.typingUsers[props.friendId]}>
+          <div class="flex gap-1 items-center px-3 py-2.5 bg-chat-surface rounded-[14px] rounded-bl-[4px] w-fit mb-2 ml-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce-dot" />
+            <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce-dot dot-delay-1" />
+            <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce-dot dot-delay-2" />
+          </div>
+        </Show>
         <div ref={messagesEnd} />
       </div>
 
@@ -135,7 +154,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
           class="flex-1 px-4 py-3 bg-surface-2 border border-transparent rounded-[10px] text-gray-900 text-[0.9375rem] font-[inherit] outline-none resize-none field-sizing-content min-h-[44px] max-h-32 transition-all placeholder:text-gray-400 focus:border-primary focus:ring-[3px] focus:ring-primary/50"
           placeholder="Type a message..."
           value={input()}
-          onInput={(e) => setInput(e.target.value)}
+          onInput={(e) => { setInput(e.target.value); handleInput(); }}
           onKeyDown={handleKeyDown}
         />
         <button
