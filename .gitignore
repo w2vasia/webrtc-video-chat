@@ -4,4 +4,4 @@ dist/
 .env
 .DS_Store
 data/
-.claude/
+.claude/.worktrees/
