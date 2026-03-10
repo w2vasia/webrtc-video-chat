@@ -47,6 +47,9 @@ let myKeyPair: CryptoKeyPair | null = null;
 const loadingSet = new Set<string>();
 const historyLoaded = new Set<number>();
 
+let _resetFn: (() => void) | null = null;
+export function resetChat() { _resetFn?.(); }
+
 export function useChat() {
   async function initKeys() {
     const storedPrivate = await getKey("privateKey");
@@ -219,6 +222,23 @@ export function useChat() {
     for (const f of friends) setState("friendInfo", f.id, { name: f.displayName, email: f.email });
   }
 
+  function reset() {
+    myKeyPair = null;
+    loadingSet.clear();
+    historyLoaded.clear();
+    setState({
+      conversations: {},
+      activeFriend: null,
+      sharedKeys: {},
+      onlineUsers: new Set(),
+      unreadCounts: {},
+      friendInfo: {},
+      hasMore: {},
+    });
+    localStorage.removeItem("unreadCounts");
+  }
+  _resetFn = reset;
+
   return {
     state,
     setState,
@@ -228,5 +248,6 @@ export function useChat() {
     setupListeners,
     setActiveFriend,
     registerFriendNames,
+    reset,
   };
 }
