@@ -1,4 +1,4 @@
-import { createResource, onCleanup, onMount, For, Show } from "solid-js";
+import { createResource, createSignal, onCleanup, onMount, For, Show } from "solid-js";
 import { api } from "../lib/api";
 
 interface PendingRequest {
@@ -13,6 +13,7 @@ export default function PendingRequests() {
     const res = await api("/api/friends/pending");
     return res.requests as PendingRequest[];
   });
+  const [error, setError] = createSignal("");
 
   onMount(() => {
     const intervalId = setInterval(refetch, 15000);
@@ -24,7 +25,8 @@ export default function PendingRequests() {
       await api("/api/friends/accept", { method: "POST", body: { friendshipId } });
       refetch();
     } catch (e) {
-      console.error("Failed to accept request", e);
+      setError("Failed to accept request. Please try again.");
+      setTimeout(() => setError(""), 3000);
     }
   }
 
@@ -33,7 +35,8 @@ export default function PendingRequests() {
       await api("/api/friends/reject", { method: "POST", body: { friendshipId } });
       refetch();
     } catch (e) {
-      console.error("Failed to reject request", e);
+      setError("Failed to reject request. Please try again.");
+      setTimeout(() => setError(""), 3000);
     }
   }
 
@@ -41,6 +44,9 @@ export default function PendingRequests() {
     <Show when={requests()?.length}>
       <div class="pending-requests">
         <h3>Requests</h3>
+        {error() && (
+          <p class="text-danger text-sm px-4 py-2">{error()}</p>
+        )}
         <For each={requests()}>
           {(req) => (
             <div class="pending-item">
