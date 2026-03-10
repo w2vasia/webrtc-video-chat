@@ -25,30 +25,34 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
   setInterval(refetch, 30000);
 
   return (
-    <div class="friend-list" onClick={(e) => { if (e.target === e.currentTarget) props.onDeselect(); }}>
+    <div class="flex-1 overflow-y-auto" onClick={(e) => { if (e.target === e.currentTarget) props.onDeselect(); }}>
       <Show when={friends()?.length === 0}>
-        <div style="padding: 32px 16px; text-align: center;">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 12px;display:block;opacity:0.5;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          <p class="placeholder">No friends yet</p>
-          <p style="color: var(--text-muted); font-size: 0.8125rem; margin-top: 4px;">Add someone by email above</p>
+        <div class="px-4 py-8 text-center">
+          <svg class="w-10 h-10 mx-auto mb-3 opacity-40 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          <p class="text-gray-400 text-[0.9375rem]">No friends yet</p>
+          <p class="text-gray-400 text-[0.8125rem] mt-1">Add someone by email above</p>
         </div>
       </Show>
       <For each={friends()}>
         {(friend) => (
           <button
-            class={`friend-item ${props.activeId === friend.id ? "active" : ""}`}
+            class={`w-full flex items-center gap-3 px-4 py-3 border-none border-l-[3px] text-gray-900 cursor-pointer text-left font-[inherit] transition-all min-h-[48px] ${props.activeId === friend.id ? "bg-primary-soft border-l-primary" : "bg-transparent border-l-transparent hover:bg-surface-2"}`}
             onClick={() => props.onSelect(friend.id)}
           >
-            <div class="avatar-wrapper">
-              <div class="friend-avatar">{friend.displayName[0].toUpperCase()}</div>
-              <div class={`status-dot ${props.onlineUsers.has(friend.id) ? "online" : ""}`} />
+            <div class="relative flex-shrink-0">
+              <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center font-semibold text-[1.05rem] text-white">
+                {friend.displayName[0].toUpperCase()}
+              </div>
+              <div class={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${props.onlineUsers.has(friend.id) ? "bg-green-500" : "bg-gray-400"}`} />
             </div>
-            <div class="friend-info">
-              <span class="friend-name">{friend.displayName}</span>
-              <span class="friend-email">{friend.email}</span>
+            <div class="flex flex-col min-w-0">
+              <span class="font-semibold text-[0.9375rem] text-gray-900">{friend.displayName}</span>
+              <span class="text-[0.8125rem] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap">{friend.email}</span>
             </div>
             <Show when={state.unreadCounts[friend.id]}>
-              <span class="unread-badge">{state.unreadCounts[friend.id]}</span>
+              <span class="ml-auto flex-shrink-0 min-w-[22px] h-[22px] px-1.5 bg-primary text-white rounded-full text-xs font-semibold flex items-center justify-center">
+                {state.unreadCounts[friend.id]}
+              </span>
             </Show>
           </button>
         )}
