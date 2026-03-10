@@ -1,9 +1,10 @@
 import { createSignal } from "solid-js";
 import { WebRTCCall } from "../lib/webrtc";
 import { wsClient } from "../lib/ws";
+import { showToast } from "../components/Toast";
 import { startRingtone, stopRingtone } from "../lib/ringtone";
 
-export type CallStatus = "idle" | "calling" | "incoming" | "connected";
+export type CallStatus = "idle" | "calling" | "incoming" | "connecting" | "connected" | "ended";
 
 const [callStatus, setCallStatus] = createSignal<CallStatus>("idle");
 const [activeCall, setActiveCall] = createSignal<WebRTCCall | null>(null);
@@ -20,6 +21,11 @@ export function useCall() {
   function setupCallListeners(): () => void {
     const unsubs: (() => void)[] = [];
     unsubs.push(wsClient.on("call-offer", async (data) => {
+      const existing = activeCall();
+      if (existing && data.iceRestart) {
+        await existing.handleOffer(data.offer);
+        return;
+      }
       if (callStatus() !== "idle") {
         wsClient.send({ type: "call-end", targetId: data.senderId });
         return;
@@ -35,8 +41,8 @@ export function useCall() {
     unsubs.push(wsClient.on("call-answer", async (data) => {
       const call = activeCall();
       if (call) {
+        setCallStatus("connecting");
         await call.handleAnswer(data.answer);
-        setCallStatus("connected");
       }
     }));
 
@@ -59,9 +65,12 @@ export function useCall() {
   async function startCall(targetId: number) {
     setCallError("");
     try {
-      const call = new WebRTCCall(targetId);
+      const call = await WebRTCCall.create(targetId);
       call.onRemoteStream = (s) => setRemoteStream(s);
+      call.onConnected = () => setCallStatus("connected");
       call.onEnded = () => endCall();
+      call.onReconnecting = () => setCallStatus("connecting");
+      call.onFailed = () => showToast("Call lost", "error");
 
       const stream = await call.startLocalMedia();
       setLocalStream(stream);
@@ -87,9 +96,12 @@ export function useCall() {
     pendingSenderId = null;
 
     try {
-      const call = new WebRTCCall(senderId);
+      const call = await WebRTCCall.create(senderId);
       call.onRemoteStream = (s) => setRemoteStream(s);
+      call.onConnected = () => setCallStatus("connected");
       call.onEnded = () => endCall();
+      call.onReconnecting = () => setCallStatus("connecting");
+      call.onFailed = () => showToast("Call lost", "error");
 
       const stream = await call.startLocalMedia();
       setLocalStream(stream);
@@ -102,7 +114,7 @@ export function useCall() {
       }
       pendingCandidates = [];
 
-      setCallStatus("connected");
+      setCallStatus("connecting");
     } catch (e: any) {
       console.error("Failed to accept call", e);
       setCallError(e?.message || "Failed to accept call");
@@ -120,9 +132,12 @@ export function useCall() {
   }
 
   function endCall() {
-    if (callStatus() === "idle") return;
+    if (callStatus() === "idle" || callStatus() === "ended") return;
     stopRingtone();
     setCallError("");
+    if (callStatus() === "connected") {
+      showToast("Call ended", "info");
+    }
     const call = activeCall();
     if (call) {
       call.onEnded = undefined; // prevent re-entrant loop
@@ -131,8 +146,11 @@ export function useCall() {
     setActiveCall(null);
     setLocalStream(null);
     setRemoteStream(null);
-    setCallStatus("idle");
-    setCallTargetId(null);
+    setCallStatus("ended");
+    setTimeout(() => {
+      setCallStatus("idle");
+      setCallTargetId(null);
+    }, 1500);
   }
 
   return {

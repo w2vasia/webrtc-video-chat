@@ -1,18 +1,15 @@
 import { wsClient } from "./ws";
 
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    // TURN relay — required for cellular/symmetric NAT
-    ...(import.meta.env.VITE_TURN_URL ? [{
-      urls: import.meta.env.VITE_TURN_URL,
-      username: import.meta.env.VITE_TURN_USERNAME || "",
-      credential: import.meta.env.VITE_TURN_CREDENTIAL || "",
-    }] : []),
-  ],
-  iceCandidatePoolSize: 10,
-};
+async function getIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch("/api/ice-servers", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (res.ok) return await res.json();
+  } catch {}
+  return [{ urls: "stun:stun.l.google.com:19302" }];
+}
 
 export class WebRTCCall {
   pc: RTCPeerConnection;
@@ -20,14 +17,24 @@ export class WebRTCCall {
   remoteStream = new MediaStream();
   targetId: number;
   onRemoteStream?: (stream: MediaStream) => void;
+  onConnected?: () => void;
   onEnded?: () => void;
+  onReconnecting?: () => void;
+  onFailed?: () => void;
   private pendingIceCandidates: RTCIceCandidateInit[] = [];
   private remoteDescSet = false;
-  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private giveUpTimer?: ReturnType<typeof setTimeout>;
+  private ended = false;
 
-  constructor(targetId: number) {
+  static async create(targetId: number): Promise<WebRTCCall> {
+    const iceServers = await getIceServers();
+    return new WebRTCCall(targetId, { iceServers, iceCandidatePoolSize: 10 });
+  }
+
+  constructor(targetId: number, config?: RTCConfiguration) {
     this.targetId = targetId;
-    this.pc = new RTCPeerConnection(ICE_SERVERS);
+    this.pc = new RTCPeerConnection(config ?? { iceServers: [{ urls: "stun:stun.l.google.com:19302" }], iceCandidatePoolSize: 10 });
 
     this.pc.ontrack = (e) => {
       this.remoteStream.addTrack(e.track);
@@ -42,11 +49,15 @@ export class WebRTCCall {
     };
 
     this.pc.onconnectionstatechange = () => {
-      if (this.disconnectTimer) { clearTimeout(this.disconnectTimer); this.disconnectTimer = null; }
-      if (this.pc.connectionState === "failed") {
-        this.end();
-      } else if (this.pc.connectionState === "disconnected") {
-        this.disconnectTimer = setTimeout(() => this.end(), 8000);
+      const state = this.pc.connectionState;
+      if (state === "connected") {
+        clearTimeout(this.reconnectTimer);
+        clearTimeout(this.giveUpTimer);
+        this.onConnected?.();
+      } else if (state === "disconnected") {
+        this.reconnectTimer = setTimeout(() => this.attemptIceRestart(), 2000);
+      } else if (state === "failed") {
+        this.attemptIceRestart();
       }
     };
   }
@@ -68,6 +79,24 @@ export class WebRTCCall {
       } catch {}
     }
     throw new Error("No camera or microphone available");
+  }
+
+  private async attemptIceRestart(): Promise<void> {
+    if (this.ended) return;
+    clearTimeout(this.giveUpTimer);
+    this.onReconnecting?.();
+    try {
+      const offer = await this.pc.createOffer({ iceRestart: true });
+      await this.pc.setLocalDescription(offer);
+      wsClient.send({ type: "call-offer", targetId: this.targetId, offer, iceRestart: true });
+      this.giveUpTimer = setTimeout(() => {
+        this.onFailed?.();
+        this.end();
+      }, 15000);
+    } catch {
+      this.onFailed?.();
+      this.end();
+    }
   }
 
   async createOffer(): Promise<void> {
@@ -124,6 +153,10 @@ export class WebRTCCall {
   }
 
   end() {
+    if (this.ended) return;
+    this.ended = true;
+    clearTimeout(this.reconnectTimer);
+    clearTimeout(this.giveUpTimer);
     this.localStream?.getTracks().forEach((t) => t.stop());
     this.pc.close();
     wsClient.send({ type: "call-end", targetId: this.targetId });

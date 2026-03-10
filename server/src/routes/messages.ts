@@ -22,7 +22,7 @@ export function messageRoutes(db: Database) {
     const limit = Math.min(Number(c.req.query("limit")) || 50, 100);
 
     let query = `
-      SELECT id, sender_id, recipient_id, ciphertext, nonce, created_at
+      SELECT id, sender_id, recipient_id, ciphertext, nonce, created_at, read_at
       FROM messages
       WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
     `;
@@ -47,6 +47,7 @@ export function messageRoutes(db: Database) {
       ciphertext: string;
       nonce: string;
       created_at: number;
+      read_at: number | null;
     }>;
 
     return c.json({
@@ -57,6 +58,7 @@ export function messageRoutes(db: Database) {
         ciphertext: r.ciphertext,
         nonce: r.nonce,
         timestamp: r.created_at,
+        readAt: r.read_at ? r.read_at * 1000 : null,
       })),
     }, 200);
   });

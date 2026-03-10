@@ -15,6 +15,7 @@ export interface WsData {
 }
 
 const onlineUsers = new Map<number, WsUser>();
+const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function getOnlineUsers() {
   return onlineUsers;
@@ -58,7 +59,7 @@ export function createWsHandlers(db: Database) {
               .all(payload.sub) as Array<{ id: number; sender_id: number; ciphertext: string; nonce: string; created_at: number }>;
 
             for (const msg of queued) {
-              ws.send(JSON.stringify({ type: "chat", id: msg.id, from: msg.sender_id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
+              ws.send(JSON.stringify({ type: "chat", from: msg.sender_id, id: msg.id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
               db.query("UPDATE messages SET delivered = 1 WHERE id = ?").run(msg.id);
             }
 
@@ -105,19 +106,17 @@ export function createWsHandlers(db: Database) {
           }
           const recipient = onlineUsers.get(data.to);
           const timestamp = Math.floor(Date.now() / 1000);
-          const msg = { type: "chat", from: userId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp };
 
-          // Always persist
           db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
             userId, data.to, data.ciphertext, data.nonce, recipient ? 1 : 0,
           );
-          const { id: serverId } = db.query("SELECT last_insert_rowid() as id").get() as { id: number };
+          const { id: msgId } = db.query("SELECT last_insert_rowid() as id").get() as { id: number };
 
-          // ACK to sender with server-assigned ID
-          ws.send(JSON.stringify({ type: "chat-ack", clientId: data.clientId, serverId, timestamp }));
+          // ACK sender with server-assigned ID
+          ws.send(JSON.stringify({ type: "chat-ack", clientId: data.clientId, serverId: msgId, timestamp }));
 
           if (recipient) {
-            recipient.ws.send(JSON.stringify({ ...msg, id: serverId }));
+            recipient.ws.send(JSON.stringify({ type: "chat", from: userId, id: msgId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp }));
           }
           break;
         }
@@ -155,11 +154,33 @@ export function createWsHandlers(db: Database) {
           break;
         }
 
+        case "read": {
+          db.query("UPDATE messages SET read_at = unixepoch() WHERE id = ? AND recipient_id = ?")
+            .run(data.messageId, userId);
+          const sender = onlineUsers.get(data.senderId);
+          if (sender) {
+            sender.ws.send(JSON.stringify({ type: "read", messageId: data.messageId }));
+          }
+          break;
+        }
+
         case "typing": {
           if (typeof data.to !== "number" || !isFriend(data.to)) break;
           const target = onlineUsers.get(data.to);
           if (target) {
-            target.ws.send(JSON.stringify({ type: "typing", from: userId }));
+            const isTyping = !!data.isTyping;
+            target.ws.send(JSON.stringify({ type: "typing", from: userId, isTyping }));
+            const key = `${userId}->${data.to}`;
+            clearTimeout(typingTimers.get(key));
+            if (isTyping) {
+              typingTimers.set(key, setTimeout(() => {
+                typingTimers.delete(key);
+                const t = onlineUsers.get(data.to);
+                if (t) t.ws.send(JSON.stringify({ type: "typing", from: userId, isTyping: false }));
+              }, 5000));
+            } else {
+              typingTimers.delete(key);
+            }
           }
           break;
         }
