@@ -49,7 +49,7 @@ export default function Chat() {
       </Show>
 
       {/* Sidebar */}
-      <aside class={`w-80 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 transition-transform sm:translate-x-0 sm:relative sm:block ${sidebarOpen() ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-10`}>
+      <aside class={`flex flex-col flex-shrink-0 w-80 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-10 sm:static sm:z-auto transition-transform sm:transition-none ${sidebarOpen() ? "translate-x-0" : "-translate-x-full"}`}>
         <div class="px-4 pt-5 pb-4 border-b border-gray-200 flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <h2 class="text-primary text-xl font-semibold">Whisper</h2>
