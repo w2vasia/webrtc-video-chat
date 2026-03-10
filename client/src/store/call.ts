@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 import { WebRTCCall } from "../lib/webrtc";
 import { wsClient } from "../lib/ws";
+import { showToast } from "../components/Toast";
 
 export type CallStatus = "idle" | "calling" | "incoming" | "ringing" | "connecting" | "connected" | "ended";
 
@@ -42,6 +43,7 @@ export function useCall() {
     });
 
     wsClient.on("call-end", () => {
+      showToast("Call ended", "info");
       endCall();
     });
   }
@@ -95,6 +97,9 @@ export function useCall() {
   }
 
   function endCall() {
+    if (callStatus() === "connected") {
+      showToast("Call ended", "info");
+    }
     const call = activeCall();
     if (call) {
       call.localStream?.getTracks().forEach((t) => t.stop());

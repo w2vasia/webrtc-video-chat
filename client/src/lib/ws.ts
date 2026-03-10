@@ -1,3 +1,7 @@
+import { createSignal } from "solid-js";
+
+export const [wsConnected, setWsConnected] = createSignal(false);
+
 type MessageHandler = (data: any) => void;
 
 class WsClient {
@@ -14,6 +18,7 @@ class WsClient {
     this.ws.onopen = () => {
       console.log("[ws] connected, authenticating...");
       this.ws!.send(JSON.stringify({ type: "auth", token }));
+      setWsConnected(true);
     };
 
     this.ws.onmessage = (e) => {
@@ -25,6 +30,7 @@ class WsClient {
 
     this.ws.onclose = (e) => {
       console.log("[ws] closed:", e.code, e.reason);
+      setWsConnected(false);
       this.reconnectTimer = setTimeout(() => {
         if (this.token) this.connect(this.token);
       }, 3000);

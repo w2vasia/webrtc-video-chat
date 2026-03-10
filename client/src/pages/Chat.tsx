@@ -2,7 +2,7 @@ import { onMount, Show, createSignal, createEffect } from "solid-js";
 import { useAuth } from "../store/auth";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
-import { wsClient } from "../lib/ws";
+import { wsClient, wsConnected } from "../lib/ws";
 import FriendList from "../components/FriendList";
 import AddFriend from "../components/AddFriend";
 import PendingRequests from "../components/PendingRequests";
@@ -52,7 +52,13 @@ export default function Chat() {
       <aside class={`flex flex-col flex-shrink-0 w-80 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-10 sm:static sm:z-auto transition-transform sm:transition-none ${sidebarOpen() ? "translate-x-0" : "-translate-x-full"}`}>
         <div class="px-4 pt-5 pb-4 border-b border-gray-200 flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <h2 class="text-primary text-xl font-semibold">Whisper</h2>
+            <div class="flex items-center gap-2">
+              <h2 class="text-primary text-xl font-semibold">Whisper</h2>
+              <span
+                class={`w-2 h-2 rounded-full transition-colors ${wsConnected() ? "bg-green-500" : "bg-red-500 animate-pulse-dot"}`}
+                title={wsConnected() ? "Connected" : "Reconnecting..."}
+              />
+            </div>
             <button
               class="px-3.5 py-1.5 bg-surface-2 hover:bg-surface-3 text-gray-500 hover:text-gray-900 rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer transition-colors min-h-[36px]"
               onClick={logout}
