@@ -7,6 +7,7 @@ import { friendRoutes } from "./routes/friends";
 import { keyRoutes } from "./routes/keys";
 import { pushRoutes } from "./routes/push";
 import { messageRoutes } from "./routes/messages";
+import { iceHandler } from "./routes/ice";
 import { authMiddleware } from "./middleware/auth";
 import { rateLimit } from "./middleware/rateLimit";
 import { createWsHandlers, type WsData } from "./ws";
@@ -39,6 +40,7 @@ app.route("/api/friends", friendRoutes(db));
 app.route("/api/keys", keyRoutes(db));
 app.route("/api/push", pushRoutes(db));
 app.route("/api/messages", messageRoutes(db));
+app.get("/api/ice-servers", iceHandler);
 
 // In production, serve client build
 const clientDist = join(import.meta.dir, "../../client/dist");

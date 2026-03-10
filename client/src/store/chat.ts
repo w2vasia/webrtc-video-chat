@@ -13,7 +13,8 @@ export interface ChatMessage {
   text: string;
   timestamp: number;
   pending?: boolean;
-  failed?: boolean;
+  serverId?: string;
+  readAt?: number;
 }
 
 interface ChatState {
@@ -24,6 +25,7 @@ interface ChatState {
   unreadCounts: Record<number, number>;
   friendInfo: Record<number, { name: string; email: string }>;
   hasMore: Record<number, boolean>;
+  typingUsers: Record<number, boolean>;
 }
 
 function loadUnreadCounts(): Record<number, number> {
@@ -41,6 +43,7 @@ const [state, setState] = createStore<ChatState>({
   unreadCounts: loadUnreadCounts(),
   friendInfo: {},
   hasMore: {},
+  typingUsers: {},
 });
 
 let myKeyPair: CryptoKeyPair | null = null;
@@ -99,7 +102,7 @@ export function useChat() {
       for (const m of res.messages) {
         try {
           const text = await decrypt(sharedKey, m.ciphertext, m.nonce);
-          msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp });
+          msgs.push({ id: String(m.id), serverId: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp, readAt: m.readAt ?? undefined });
         } catch {
           msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text: "[Unable to decrypt]", timestamp: m.timestamp });
         }
@@ -133,23 +136,26 @@ export function useChat() {
     };
 
     setState("conversations", friendId, (prev = []) => [...prev, msg]);
+    wsClient.queueMessage(clientId, { type: "chat", to: friendId, ciphertext, nonce, clientId });
+  }
 
-    const sent = wsClient.send({ type: "chat", to: friendId, ciphertext, nonce, clientId });
-    if (!sent) {
-      setState("conversations", friendId, (msgs) =>
-        msgs.map((m) => (m.id === clientId ? { ...m, pending: false, failed: true } : m)),
-      );
-    }
+  function sendTyping(friendId: number, isTyping: boolean) {
+    wsClient.send({ type: "typing", to: friendId, isTyping });
   }
 
   function setupListeners(): () => void {
     const unsubs: (() => void)[] = [];
+
     unsubs.push(wsClient.on("presence", (data) => {
       setState("onlineUsers", (prev) => {
         const next = new Set(prev);
         data.online ? next.add(data.userId) : next.delete(data.userId);
         return next;
       });
+    }));
+
+    unsubs.push(wsClient.on("typing", (data) => {
+      setState("typingUsers", data.from, !!data.isTyping);
     }));
 
     unsubs.push(wsClient.on("chat", async (data) => {
@@ -163,6 +169,7 @@ export function useChat() {
           to: 0,
           text,
           timestamp: data.timestamp,
+          serverId: data.id ? String(data.id) : undefined,
         };
 
         setState("conversations", data.from, (prev = []) => [...prev, msg]);
@@ -194,13 +201,23 @@ export function useChat() {
     }));
 
     unsubs.push(wsClient.on("chat-ack", (data) => {
-      // Find conversation containing this clientId and mark delivered
-      for (const [fid, msgs] of Object.entries(state.conversations)) {
-        const idx = msgs.findIndex((m) => m.id === data.clientId);
-        if (idx !== -1) {
-          setState("conversations", Number(fid), idx, { pending: false, id: String(data.serverId) });
-          break;
+      wsClient.ackMessage(data.clientId);
+      setState("conversations", (convs) => {
+        const updated: typeof convs = {};
+        for (const [fid, msgs] of Object.entries(convs)) {
+          updated[Number(fid)] = msgs.map(m =>
+            m.id === data.clientId ? { ...m, serverId: String(data.serverId), timestamp: data.timestamp, pending: false } : m
+          );
         }
+        return updated;
+      });
+    }));
+
+    unsubs.push(wsClient.on("read", (data) => {
+      for (const friendId of Object.keys(state.conversations)) {
+        setState("conversations", Number(friendId), (msgs) =>
+          msgs.map((m) => m.serverId === String(data.messageId) ? { ...m, readAt: Date.now() } : m)
+        );
       }
     }));
 
@@ -224,6 +241,7 @@ export function useChat() {
     setState,
     initKeys,
     sendMessage,
+    sendTyping,
     loadHistory,
     setupListeners,
     setActiveFriend,
