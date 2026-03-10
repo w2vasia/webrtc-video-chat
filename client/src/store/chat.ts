@@ -13,6 +13,8 @@ export interface ChatMessage {
   text: string;
   timestamp: number;
   pending?: boolean;
+  serverId?: string;
+  readAt?: number;
 }
 
 interface ChatState {
@@ -104,7 +106,7 @@ export function useChat() {
       for (const m of res.messages) {
         try {
           const text = await decrypt(sharedKey, m.ciphertext, m.nonce);
-          msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp });
+          msgs.push({ id: String(m.id), serverId: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp, readAt: m.readAt ?? undefined });
         } catch {}
       }
       if (!beforeId) historyLoaded.add(friendId);
@@ -147,6 +149,14 @@ export function useChat() {
   }
 
   function setupListeners() {
+    wsClient.on("read", (data) => {
+      for (const friendId of Object.keys(state.conversations)) {
+        setState("conversations", Number(friendId), (msgs) =>
+          msgs.map((m) => m.serverId === String(data.messageId) ? { ...m, readAt: Date.now() } : m)
+        );
+      }
+    });
+
     wsClient.on("presence", (data) => {
       setState("onlineUsers", (prev) => {
         const next = new Set(prev);

@@ -1,9 +1,10 @@
 import { createSignal, For, createEffect, Show, onCleanup } from "solid-js";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
+import { wsClient } from "../lib/ws";
 
 export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number) => void }) {
-  const { state, sendMessage, sendTyping, loadHistory } = useChat();
+  const { state, setState, sendMessage, sendTyping, loadHistory } = useChat();
   const { callStatus, callTargetId, acceptCall, rejectCall } = useCall();
   const [input, setInput] = createSignal("");
   const [error, setError] = createSignal("");
@@ -25,6 +26,17 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
   });
 
   const messages = () => state.conversations[props.friendId] || [];
+
+  createEffect(() => {
+    const msgs = state.conversations[props.friendId] ?? [];
+    const unread = msgs.filter(m => m.from !== 0 && !m.readAt && m.serverId);
+    for (const m of unread) {
+      wsClient.send({ type: "read", messageId: Number(m.serverId), senderId: props.friendId });
+      setState("conversations", props.friendId, (prev) =>
+        prev.map(msg => msg.id === m.id ? { ...msg, readAt: Date.now() } : msg)
+      );
+    }
+  });
 
   createEffect(() => {
     shouldScrollToBottom = true;
@@ -128,8 +140,13 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
             <div class={`flex ${msg.from === 0 ? "justify-end" : "justify-start"}`}>
               <div class={`px-4 py-2.5 rounded-2xl max-w-[70%] ${msg.from === 0 ? "bg-primary text-white rounded-br-[4px]" : "bg-chat-surface text-gray-900 rounded-bl-[4px] shadow-sm"}`}>
                 <p class="text-[0.9375rem] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
-                <span class={`text-[0.7rem] mt-1 block ${msg.from === 0 ? "text-white/70 text-right" : "text-gray-400"}`}>
+                <span class={`text-[0.7rem] mt-1 flex items-center gap-1 ${msg.from === 0 ? "justify-end text-white/70" : "text-gray-400"}`}>
                   {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  <Show when={msg.from === 0}>
+                    <span class={`text-[10px] select-none leading-none ${msg.readAt ? "text-white" : msg.serverId ? "text-white/60" : "text-white/30"}`}>
+                      {msg.readAt ? "✓✓" : msg.serverId ? "✓" : "·"}
+                    </span>
+                  </Show>
                 </span>
               </div>
             </div>

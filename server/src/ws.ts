@@ -100,6 +100,16 @@ export function createWsHandlers(db: Database) {
           break;
         }
 
+        case "read": {
+          db.query("UPDATE messages SET read_at = unixepoch() WHERE id = ? AND recipient_id = ?")
+            .run(data.messageId, userId);
+          const sender = onlineUsers.get(data.senderId);
+          if (sender) {
+            sender.ws.send(JSON.stringify({ type: "read", messageId: data.messageId }));
+          }
+          break;
+        }
+
         case "typing": {
           const target = onlineUsers.get(data.to);
           if (target) {
