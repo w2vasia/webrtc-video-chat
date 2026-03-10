@@ -2,7 +2,7 @@
 // All via Web Crypto API — zero dependencies
 
 export async function generateKeyPair(): Promise<CryptoKeyPair> {
-  return crypto.subtle.generateKey({ name: "X25519" }, true, ["deriveKey"]) as Promise<CryptoKeyPair>;
+  return crypto.subtle.generateKey({ name: "X25519" }, false, ["deriveKey"]) as Promise<CryptoKeyPair>;
 }
 
 export async function exportPublicKey(key: CryptoKey): Promise<string> {
@@ -15,15 +15,6 @@ export async function importPublicKey(b64: string): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", raw, { name: "X25519" }, true, []);
 }
 
-export async function exportPrivateKey(key: CryptoKey): Promise<string> {
-  const jwk = await crypto.subtle.exportKey("jwk", key);
-  return JSON.stringify(jwk);
-}
-
-export async function importPrivateKey(jwkStr: string): Promise<CryptoKey> {
-  const jwk = JSON.parse(jwkStr);
-  return crypto.subtle.importKey("jwk", jwk, { name: "X25519" }, true, ["deriveKey"]);
-}
 
 export async function deriveSharedKey(privateKey: CryptoKey, publicKey: CryptoKey): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(

@@ -42,10 +42,12 @@ class WsClient {
     this.ws = null;
   }
 
-  send(data: any) {
+  send(data: any): boolean {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
+      return true;
     }
+    return false;
   }
 
   on(type: string, handler: MessageHandler) {

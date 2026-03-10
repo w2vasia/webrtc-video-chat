@@ -23,7 +23,13 @@ export function getOnlineUsers() {
 export function createWsHandlers(db: Database) {
   return {
     async message(ws: ServerWebSocket<WsData>, message: string | Buffer) {
-      const data = JSON.parse(typeof message === "string" ? message : message.toString());
+      let data: any;
+      try {
+        data = JSON.parse(typeof message === "string" ? message : message.toString());
+      } catch {
+        ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
+        return;
+      }
 
       // Auth handshake must be first message
       if (!ws.data.authenticated) {
@@ -45,7 +51,7 @@ export function createWsHandlers(db: Database) {
               .all(payload.sub) as Array<{ id: number; sender_id: number; ciphertext: string; nonce: string; created_at: number }>;
 
             for (const msg of queued) {
-              ws.send(JSON.stringify({ type: "chat", from: msg.sender_id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
+              ws.send(JSON.stringify({ type: "chat", id: msg.id, from: msg.sender_id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
               db.query("UPDATE messages SET delivered = 1 WHERE id = ?").run(msg.id);
             }
 
@@ -73,17 +79,21 @@ export function createWsHandlers(db: Database) {
 
       switch (data.type) {
         case "chat": {
+          if (!data.to || !data.ciphertext || !data.nonce) break;
           const recipient = onlineUsers.get(data.to);
           const timestamp = Math.floor(Date.now() / 1000);
           const msg = { type: "chat", from: userId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp };
 
           // Always persist
-          db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
+          const result = db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
             userId, data.to, data.ciphertext, data.nonce, recipient ? 1 : 0,
           );
 
+          // ACK to sender with server-assigned ID
+          ws.send(JSON.stringify({ type: "chat-ack", clientId: data.clientId, serverId: Number(result.lastInsertRowid), timestamp }));
+
           if (recipient) {
-            recipient.ws.send(JSON.stringify(msg));
+            recipient.ws.send(JSON.stringify({ ...msg, id: Number(result.lastInsertRowid) }));
           }
           break;
         }

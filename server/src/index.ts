@@ -10,7 +10,7 @@ import { messageRoutes } from "./routes/messages";
 import { authMiddleware } from "./middleware/auth";
 import { createWsHandlers, type WsData } from "./ws";
 import { existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 
 // Ensure data dir
 mkdirSync("data", { recursive: true });
@@ -19,7 +19,11 @@ const db = getDb("data/app.db");
 migrate(db);
 
 const app = new Hono();
-app.use("*", cors());
+app.use("*", cors({
+  origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+}));
 app.use("*", logger());
 
 // Public routes
@@ -39,7 +43,8 @@ app.get("/api/health", (c) => c.json({ ok: true }, 200));
 const clientDist = join(import.meta.dir, "../../client/dist");
 if (existsSync(clientDist)) {
   app.get("*", async (c) => {
-    const filePath = join(clientDist, c.req.path);
+    const filePath = resolve(clientDist, c.req.path.replace(/^\//, ""));
+    if (!filePath.startsWith(clientDist)) return new Response("Not found", { status: 404 });
     const file = Bun.file(filePath);
     if (await file.exists()) return new Response(file);
     // SPA fallback
