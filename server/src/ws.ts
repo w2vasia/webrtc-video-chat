@@ -108,15 +108,16 @@ export function createWsHandlers(db: Database) {
           const msg = { type: "chat", from: userId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp };
 
           // Always persist
-          const result = db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
+          db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
             userId, data.to, data.ciphertext, data.nonce, recipient ? 1 : 0,
           );
+          const { id: serverId } = db.query("SELECT last_insert_rowid() as id").get() as { id: number };
 
           // ACK to sender with server-assigned ID
-          ws.send(JSON.stringify({ type: "chat-ack", clientId: data.clientId, serverId: Number(result.lastInsertRowid), timestamp }));
+          ws.send(JSON.stringify({ type: "chat-ack", clientId: data.clientId, serverId, timestamp }));
 
           if (recipient) {
-            recipient.ws.send(JSON.stringify({ ...msg, id: Number(result.lastInsertRowid) }));
+            recipient.ws.send(JSON.stringify({ ...msg, id: serverId }));
           }
           break;
         }
