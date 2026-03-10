@@ -12,10 +12,12 @@ const [callTargetId, setCallTargetId] = createSignal<number | null>(null);
 
 let pendingOffer: RTCSessionDescriptionInit | null = null;
 let pendingSenderId: number | null = null;
+let pendingCandidates: RTCIceCandidateInit[] = [];
 
 export function useCall() {
   function setupCallListeners() {
     wsClient.on("call-offer", async (data) => {
+      pendingCandidates = [];
       setCallTargetId(data.senderId);
       setCallStatus("incoming");
       pendingOffer = data.offer;
@@ -32,7 +34,11 @@ export function useCall() {
 
     wsClient.on("ice-candidate", async (data) => {
       const call = activeCall();
-      if (call) await call.handleIceCandidate(data.candidate);
+      if (call) {
+        await call.handleIceCandidate(data.candidate);
+      } else {
+        pendingCandidates.push(data.candidate);
+      }
     });
 
     wsClient.on("call-end", () => {
@@ -66,8 +72,14 @@ export function useCall() {
     setActiveCall(call);
 
     await call.handleOffer(pendingOffer);
-    setCallStatus("connected");
 
+    // apply ICE candidates that arrived before accept
+    for (const c of pendingCandidates) {
+      await call.handleIceCandidate(c);
+    }
+    pendingCandidates = [];
+
+    setCallStatus("connected");
     pendingOffer = null;
     pendingSenderId = null;
   }

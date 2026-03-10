@@ -1,22 +1,34 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, createEffect, Show } from "solid-js";
 import { useCall } from "../store/call";
+
+function bindStream(el: HTMLVideoElement, stream: MediaStream | null) {
+  if (!stream) return;
+  el.srcObject = stream;
+  el.play().catch(() => {});
+}
 
 export default function VideoCall() {
   const { localStream, remoteStream, activeCall, endCall, callStatus } = useCall();
   const [videoOn, setVideoOn] = createSignal(true);
   const [audioOn, setAudioOn] = createSignal(true);
+  let remoteVideoEl: HTMLVideoElement | undefined;
+  let localVideoEl: HTMLVideoElement | undefined;
+
+  createEffect(() => { if (remoteVideoEl) bindStream(remoteVideoEl, remoteStream()); });
+  createEffect(() => { if (localVideoEl) bindStream(localVideoEl, localStream()); });
 
   return (
     <div class="video-call-overlay">
       <div class="video-call">
         <div class="video-remote">
-          <Show when={remoteStream()} fallback={<div class="video-placeholder">{callStatus() === "calling" ? "Calling..." : "Connecting..."}</div>}>
-            <video ref={(el) => { el.srcObject = remoteStream(); }} autoplay playsinline />
+          <video ref={remoteVideoEl} autoplay playsinline style={{ display: remoteStream() ? "block" : "none" }} />
+          <Show when={!remoteStream()}>
+            <div class="video-placeholder">{callStatus() === "calling" ? "Calling..." : "Connecting..."}</div>
           </Show>
         </div>
 
         <div class="video-local">
-          <video ref={(el) => { if (localStream()) el.srcObject = localStream(); }} autoplay playsinline muted />
+          <video ref={localVideoEl} autoplay playsinline muted />
         </div>
 
         <div class="call-controls">

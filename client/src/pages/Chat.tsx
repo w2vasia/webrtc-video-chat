@@ -1,4 +1,4 @@
-import { onMount, Show, createSignal } from "solid-js";
+import { onMount, Show, createSignal, createEffect } from "solid-js";
 import { useAuth } from "../store/auth";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
@@ -13,8 +13,16 @@ import IncomingCall from "../components/IncomingCall";
 export default function Chat() {
   const { user, token, logout } = useAuth();
   const { state, setActiveFriend, initKeys, setupListeners } = useChat();
-  const { callStatus, setupCallListeners, startCall } = useCall();
+  const { callStatus, callTargetId, setupCallListeners, startCall } = useCall();
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
+
+  // auto-open caller's chat on incoming call
+  createEffect(() => {
+    if (callStatus() === "incoming" && callTargetId()) {
+      setActiveFriend(callTargetId()!);
+      setSidebarOpen(false);
+    }
+  });
 
   onMount(async () => {
     wsClient.connect(token()!);
@@ -34,9 +42,6 @@ export default function Chat() {
 
   return (
     <div class="chat-layout">
-      <Show when={callStatus() === "incoming"}>
-        <IncomingCall />
-      </Show>
       <Show when={callStatus() === "calling" || callStatus() === "connected"}>
         <VideoCall />
       </Show>
