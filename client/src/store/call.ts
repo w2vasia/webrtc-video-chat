@@ -43,7 +43,6 @@ export function useCall() {
     });
 
     wsClient.on("call-end", () => {
-      showToast("Call ended", "info");
       endCall();
     });
   }
