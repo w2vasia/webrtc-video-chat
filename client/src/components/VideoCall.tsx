@@ -25,19 +25,15 @@ export default function VideoCall() {
   };
 
   const [elapsed, setElapsed] = createSignal(0);
-  let timerInterval: ReturnType<typeof setInterval> | undefined;
 
   createEffect(() => {
     if (callStatus() === "connected") {
-      timerInterval = setInterval(() => setElapsed((e) => e + 1), 1000);
+      const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+      onCleanup(() => clearInterval(id));
     } else {
-      clearInterval(timerInterval);
-      timerInterval = undefined;
       setElapsed(0);
     }
   });
-
-  onCleanup(() => clearInterval(timerInterval));
 
   function formatTime(s: number) {
     return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -47,13 +43,8 @@ export default function VideoCall() {
     <div class="fixed inset-0 z-50 bg-black flex items-center justify-center">
       <div class="relative w-full h-full">
         {/* Remote video */}
-        <div class="w-full h-full relative bg-gray-900 flex items-center justify-center">
+        <div class="w-full h-full relative bg-gray-900">
           <video ref={remoteVideoEl} autoplay playsinline class={remoteStream() ? "w-full h-full object-cover" : "hidden"} />
-          <Show when={!remoteStream()}>
-            <div class="text-white text-xl font-medium">
-              {statusText[callStatus()] ?? "Connecting..."}
-            </div>
-          </Show>
         </div>
 
         {/* Status/timer overlay */}
