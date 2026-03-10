@@ -21,7 +21,10 @@ const db = getDb("data/app.db");
 migrate(db);
 
 const app = new Hono();
-const corsOrigin = process.env.CLIENT_ORIGIN || (process.env.NODE_ENV === "production" ? "*" : "http://localhost:5173");
+if (!process.env.CLIENT_ORIGIN && process.env.NODE_ENV === "production") {
+  throw new Error("CLIENT_ORIGIN must be set in production");
+}
+const corsOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 app.use("*", cors({
   origin: corsOrigin,
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -30,7 +33,11 @@ app.use("*", cors({
 app.use("*", logger());
 
 // Public routes (rate limited)
-app.use("/api/auth/*", rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
+app.use("/api/auth/*", rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  trustProxy: !!process.env.TRUST_PROXY,
+}));
 app.route("/api/auth", authRoutes(db));
 app.get("/api/health", (c) => c.json({ ok: true }, 200));
 

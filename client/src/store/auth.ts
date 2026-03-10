@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 import { wsClient } from "../lib/ws";
 import { deleteKey } from "../lib/keystore";
+import { resetChat } from "./chat";
 
 interface User {
   id: number;
@@ -23,6 +24,7 @@ export function useAuth() {
   }
 
   async function logout() {
+    resetChat();
     wsClient.disconnect();
     localStorage.removeItem("token");
     localStorage.removeItem("user");

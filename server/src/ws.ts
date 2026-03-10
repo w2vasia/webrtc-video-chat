@@ -99,7 +99,7 @@ export function createWsHandlers(db: Database) {
         case "chat": {
           if (typeof data.to !== "number" || !Number.isInteger(data.to)) break;
           if (typeof data.ciphertext !== "string" || data.ciphertext.length > MAX_PAYLOAD) break;
-          if (typeof data.nonce !== "string" || data.nonce.length > 64) break;
+          if (typeof data.nonce !== "string" || data.nonce.length < 12 || data.nonce.length > 64) break;
           if (!isFriend(data.to)) {
             ws.send(JSON.stringify({ type: "error", message: "Not friends" }));
             break;

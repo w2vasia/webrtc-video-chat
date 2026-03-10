@@ -127,3 +127,14 @@ describe("GET /api/friends/pending", () => {
     expect(body.requests).toHaveLength(1);
   });
 });
+
+describe("POST /api/friends/reject", () => {
+  it("reject returns 404 for nonexistent friendship", async () => {
+    const res = await app.request("/api/friends/reject", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ friendshipId: 99999 }),
+    });
+    expect(res.status).toBe(404);
+  });
+});

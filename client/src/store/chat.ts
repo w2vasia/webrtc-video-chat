@@ -49,6 +49,10 @@ const [state, setState] = createStore<ChatState>({
 let myKeyPair: CryptoKeyPair | null = null;
 const loadingSet = new Set<string>();
 const historyLoaded = new Set<number>();
+const pendingMsgMap = new Map<string, number>(); // clientId → friendId
+
+let _resetFn: (() => void) | null = null;
+export function resetChat() { _resetFn?.(); }
 
 export function useChat() {
   async function initKeys() {
@@ -63,7 +67,8 @@ export function useChat() {
       await storeKey("publicKey", myKeyPair.publicKey);
     }
 
-    const pub = await exportPublicKey(myKeyPair!.publicKey);
+    if (!myKeyPair) throw new Error("Key pair generation failed");
+    const pub = await exportPublicKey(myKeyPair.publicKey);
     await api("/api/keys", { method: "POST", body: { identityKey: pub, signedPreKey: pub } });
   }
 
@@ -77,7 +82,8 @@ export function useChat() {
       throw new Error("Friend hasn't logged in yet — keys not available");
     }
     const friendPub = await importPublicKey(res.identityKey);
-    const shared = await deriveSharedKey(myKeyPair!.privateKey, friendPub);
+    if (!myKeyPair) throw new Error("Keys not initialized — call initKeys() first");
+    const shared = await deriveSharedKey(myKeyPair.privateKey, friendPub);
 
     setState("sharedKeys", friendId, shared);
     return shared;
@@ -126,6 +132,8 @@ export function useChat() {
     const { ciphertext, nonce } = await encrypt(sharedKey, text);
 
     const clientId = crypto.randomUUID();
+    pendingMsgMap.set(clientId, friendId);
+
     const msg: ChatMessage = {
       id: clientId,
       from: 0,
@@ -236,6 +244,24 @@ export function useChat() {
     for (const f of friends) setState("friendInfo", f.id, { name: f.displayName, email: f.email });
   }
 
+  function reset() {
+    myKeyPair = null;
+    loadingSet.clear();
+    historyLoaded.clear();
+    pendingMsgMap.clear();
+    setState({
+      conversations: {},
+      activeFriend: null,
+      sharedKeys: {},
+      onlineUsers: new Set(),
+      unreadCounts: {},
+      friendInfo: {},
+      hasMore: {},
+    });
+    localStorage.removeItem("unreadCounts");
+  }
+  _resetFn = reset;
+
   return {
     state,
     setState,
@@ -246,5 +272,6 @@ export function useChat() {
     setupListeners,
     setActiveFriend,
     registerFriendNames,
+    reset,
   };
 }

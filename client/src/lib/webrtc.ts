@@ -129,10 +129,15 @@ export class WebRTCCall {
   }
 
   private async flushIceCandidates(): Promise<void> {
-    for (const c of this.pendingIceCandidates) {
-      await this.pc.addIceCandidate(new RTCIceCandidate(c));
-    }
+    const candidates = this.pendingIceCandidates;
     this.pendingIceCandidates = [];
+    for (const c of candidates) {
+      try {
+        await this.pc.addIceCandidate(new RTCIceCandidate(c));
+      } catch {
+        // stale or invalid candidate — skip
+      }
+    }
   }
 
   toggleVideo(): boolean {
