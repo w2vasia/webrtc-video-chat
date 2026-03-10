@@ -65,6 +65,8 @@ export function friendRoutes(db: Database) {
       "DELETE FROM friendships WHERE id = ? AND (requester_id = ? OR addressee_id = ?)",
     ).run(friendshipId, userId, userId);
 
+    const { changes } = db.query("SELECT changes() as changes").get() as { changes: number };
+    if (changes === 0) return c.json({ error: "Friendship not found" }, 404);
     return c.json({ ok: true }, 200);
   });
 
