@@ -36,7 +36,7 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
       <For each={friends()}>
         {(friend) => (
           <button
-            class={`w-full flex items-center gap-3 px-4 py-3 border-none border-l-[3px] text-gray-900 cursor-pointer text-left font-[inherit] transition-all min-h-[48px] ${props.activeId === friend.id ? "bg-primary-soft border-l-primary" : "bg-transparent border-l-transparent hover:bg-surface-2"}`}
+            class={`w-full flex items-center gap-3 px-4 py-3 border-0 border-l-[3px] [border-left-style:solid] text-gray-900 cursor-pointer text-left font-[inherit] transition-all min-h-[48px] ${props.activeId === friend.id ? "bg-primary-soft border-l-primary" : "bg-transparent border-l-transparent hover:bg-surface-2"}`}
             onClick={() => props.onSelect(friend.id)}
           >
             <div class="relative flex-shrink-0">
@@ -47,7 +47,7 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
             </div>
             <div class="flex flex-col min-w-0">
               <span class="font-semibold text-[0.9375rem] text-gray-900">{friend.displayName}</span>
-              <span class="text-[0.8125rem] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap">{friend.email}</span>
+              <span class="text-[0.8125rem] text-gray-400 truncate">{friend.email}</span>
             </div>
             <Show when={state.unreadCounts[friend.id]}>
               <span class="ml-auto flex-shrink-0 min-w-[22px] h-[22px] px-1.5 bg-primary text-white rounded-full text-xs font-semibold flex items-center justify-center">
