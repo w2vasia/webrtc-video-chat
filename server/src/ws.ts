@@ -74,14 +74,16 @@ export function createWsHandlers(db: Database) {
       switch (data.type) {
         case "chat": {
           const recipient = onlineUsers.get(data.to);
-          const msg = { type: "chat", from: userId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp: Math.floor(Date.now() / 1000) };
+          const timestamp = Math.floor(Date.now() / 1000);
+          const msg = { type: "chat", from: userId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp };
+
+          // Always persist
+          db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
+            userId, data.to, data.ciphertext, data.nonce, recipient ? 1 : 0,
+          );
 
           if (recipient) {
             recipient.ws.send(JSON.stringify(msg));
-          } else {
-            db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce) VALUES (?, ?, ?, ?)").run(
-              userId, data.to, data.ciphertext, data.nonce,
-            );
           }
           break;
         }

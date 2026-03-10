@@ -36,6 +36,7 @@ export default function Chat() {
         <div class="sidebar-header">
           <h2>Whisper</h2>
           <span class="user-name">{user()?.displayName}</span>
+          <span class="user-email">{user()?.email}</span>
           <button onClick={logout} class="btn-logout">Logout</button>
         </div>
         <AddFriend />

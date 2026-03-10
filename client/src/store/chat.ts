@@ -54,12 +54,39 @@ export function useChat() {
   async function getSharedKey(friendId: number): Promise<CryptoKey> {
     if (state.sharedKeys[friendId]) return state.sharedKeys[friendId];
 
-    const { identityKey } = await api(`/api/keys/${friendId}`);
-    const friendPub = await importPublicKey(identityKey);
+    let res;
+    try {
+      res = await api(`/api/keys/${friendId}`);
+    } catch {
+      throw new Error("Friend hasn't logged in yet — keys not available");
+    }
+    const friendPub = await importPublicKey(res.identityKey);
     const shared = await deriveSharedKey(myKeyPair!.privateKey, friendPub);
 
     setState("sharedKeys", friendId, shared);
     return shared;
+  }
+
+  async function loadHistory(friendId: number) {
+    if (state.conversations[friendId]?.length) return; // already loaded
+    const sharedKey = await getSharedKey(friendId);
+    const res = await api(`/api/messages/${friendId}`);
+    const msgs: ChatMessage[] = [];
+    for (const m of res.messages) {
+      try {
+        const text = await decrypt(sharedKey, m.ciphertext, m.nonce);
+        msgs.push({ id: String(m.id), from: m.from, to: m.to, text, timestamp: m.timestamp });
+      } catch {
+        // skip messages that can't be decrypted
+      }
+    }
+    if (msgs.length) {
+      setState("conversations", friendId, (prev = []) => {
+        // merge: history first, then any real-time messages already in state
+        const existingIds = new Set(prev.map((p) => p.id));
+        return [...msgs.filter((m) => !existingIds.has(m.id)), ...prev];
+      });
+    }
   }
 
   async function sendMessage(friendId: number, text: string) {
@@ -117,6 +144,7 @@ export function useChat() {
     setState,
     initKeys,
     sendMessage,
+    loadHistory,
     setupListeners,
     setActiveFriend: (id: number | null) => setState("activeFriend", id),
   };

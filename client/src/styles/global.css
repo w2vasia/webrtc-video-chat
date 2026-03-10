@@ -95,6 +95,8 @@ body {
 }
 
 .sidebar-header h2 { color: var(--primary); }
+.user-name { font-weight: 600; font-size: 0.95rem; }
+.user-email { font-size: 0.8rem; color: var(--text-muted); }
 .sidebar-header button {
   padding: 6px 12px;
   background: var(--surface-2);

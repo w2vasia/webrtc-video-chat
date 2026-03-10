@@ -10,12 +10,39 @@ E2E encrypted messaging + WebRTC video calls. PWA.
 - **Video:** WebRTC peer-to-peer
 - **Push:** Web Push API (VAPID)
 
-## Dev
+## Local Development
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) v1.0+
+
+### Setup
 
 ```bash
+# Install dependencies
 bun install
-bun run dev:server   # http://localhost:3000
-bun run dev:client   # http://localhost:5173 (proxies /api + /ws to server)
+
+# Create env file (optional — defaults work for dev)
+cp .env.example .env
+```
+
+### Run
+
+```bash
+# Start both server and client
+bun run dev
+
+# Or start separately:
+bun run dev:server   # API + WebSocket at http://localhost:3000
+bun run dev:client   # Vite dev server at http://localhost:5173 (proxies /api + /ws to :3000)
+```
+
+### Other commands
+
+```bash
+bun run build        # Production build (client + server)
+bun run test         # Run all tests
+bun run seed         # Seed DB with test data
 ```
 
 ## Prod

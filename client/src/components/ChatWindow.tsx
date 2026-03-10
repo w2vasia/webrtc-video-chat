@@ -1,12 +1,17 @@
-import { createSignal, For, createEffect } from "solid-js";
+import { createSignal, For, createEffect, onMount } from "solid-js";
 import { useChat } from "../store/chat";
 
 export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number) => void }) {
-  const { state, sendMessage } = useChat();
+  const { state, sendMessage, loadHistory } = useChat();
   const [input, setInput] = createSignal("");
+  const [error, setError] = createSignal("");
   let messagesEnd: HTMLDivElement | undefined;
 
   const messages = () => state.conversations[props.friendId] || [];
+
+  createEffect(() => {
+    loadHistory(props.friendId);
+  });
 
   createEffect(() => {
     messages();
@@ -18,7 +23,12 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
     const text = input().trim();
     if (!text) return;
     setInput("");
-    await sendMessage(props.friendId, text);
+    setError("");
+    try {
+      await sendMessage(props.friendId, text);
+    } catch (err: any) {
+      setError(err.message);
+    }
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -52,6 +62,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
         <div ref={messagesEnd} />
       </div>
 
+      {error() && <p class="error" style="padding: 8px 16px">{error()}</p>}
       <form class="chat-input" onSubmit={handleSend}>
         <textarea
           placeholder="Type a message..."

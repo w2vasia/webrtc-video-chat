@@ -2,11 +2,12 @@
   "name": "webrtc-video-chat",
   "private": true,
   "scripts": {
-    "dev": "bun run --filter '*' dev",
-    "dev:server": "bun run --filter server dev",
-    "dev:client": "bun run --filter client dev",
-    "build": "bun run --filter client build && bun run --filter server build",
-    "test": "bun run --filter '*' test"
+    "dev": "bun run dev:server & bun run dev:client",
+    "dev:server": "cd server && bun run dev",
+    "dev:client": "cd client && bun run dev",
+    "build": "cd client && bun run build && cd ../server && bun run build",
+    "test": "cd server && bun test && cd ../client && bun run test",
+    "seed": "bun run scripts/seed.ts"
   },
   "workspaces": [
     "server",
