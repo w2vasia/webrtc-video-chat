@@ -8,5 +8,11 @@
     "build": "bun run --filter client build && bun run --filter server build",
     "test": "bun run --filter '*' test"
   },
-  "workspaces": ["server", "client"]
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "devDependencies": {
+    "jsdom": "^28.1.0"
+  }
 }
