@@ -35,7 +35,10 @@ export default function AddFriend(props: { onAdded?: () => void }) {
         onInput={(e) => setEmail(e.target.value)}
         required
       />
-      <button type="submit" disabled={loading()}>Add</button>
+      <button type="submit" disabled={loading()}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M12 5v14M5 12h14"/></svg>
+        Add
+      </button>
       {status() && (
         <p class={status()!.ok ? "success-msg" : "error-msg"}>{status()!.msg}</p>
       )}

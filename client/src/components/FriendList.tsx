@@ -20,7 +20,11 @@ export default function FriendList(props: { onSelect: (id: number) => void; acti
   return (
     <div class="friend-list">
       <Show when={friends()?.length === 0}>
-        <p class="placeholder" style="padding: 16px">No friends yet. Add someone!</p>
+        <div style="padding: 32px 16px; text-align: center;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 12px;display:block;opacity:0.5;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          <p class="placeholder">No friends yet</p>
+          <p style="color: var(--text-muted); font-size: 0.8125rem; margin-top: 4px;">Add someone by email above</p>
+        </div>
       </Show>
       <For each={friends()}>
         {(friend) => (

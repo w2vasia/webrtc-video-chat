@@ -35,10 +35,11 @@ export default function Register() {
       <form class="auth-form" onSubmit={handleSubmit}>
         <h1>Whisper</h1>
         <h2>Create Account</h2>
+        <p class="auth-desc">End-to-end encrypted messaging</p>
         {error() && <p class="error">{error()}</p>}
-        <input type="text" placeholder="Display Name" value={displayName()} onInput={(e) => setDisplayName(e.target.value)} required />
-        <input type="email" placeholder="Email" value={email()} onInput={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password (min 8 chars)" value={password()} onInput={(e) => setPassword(e.target.value)} minLength={8} required />
+        <input type="text" placeholder="Display Name" value={displayName()} onInput={(e) => setDisplayName(e.target.value)} autocomplete="name" required />
+        <input type="email" placeholder="Email" value={email()} onInput={(e) => setEmail(e.target.value)} autocomplete="email" required />
+        <input type="password" placeholder="Password (min 8 chars)" value={password()} onInput={(e) => setPassword(e.target.value)} autocomplete="new-password" minLength={8} required />
         <button type="submit" disabled={loading()}>
           {loading() ? "Creating..." : "Create Account"}
         </button>

@@ -34,9 +34,10 @@ export default function Login() {
       <form class="auth-form" onSubmit={handleSubmit}>
         <h1>Whisper</h1>
         <h2>Sign In</h2>
+        <p class="auth-desc">End-to-end encrypted messaging</p>
         {error() && <p class="error">{error()}</p>}
-        <input type="email" placeholder="Email" value={email()} onInput={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password()} onInput={(e) => setPassword(e.target.value)} required />
+        <input type="email" placeholder="Email" value={email()} onInput={(e) => setEmail(e.target.value)} autocomplete="email" required />
+        <input type="password" placeholder="Password" value={password()} onInput={(e) => setPassword(e.target.value)} autocomplete="current-password" required />
         <button type="submit" disabled={loading()}>
           {loading() ? "Signing in..." : "Sign In"}
         </button>

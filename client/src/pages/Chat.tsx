@@ -34,10 +34,14 @@ export default function Chat() {
 
       <aside class={`sidebar ${sidebarOpen() ? "open" : ""}`}>
         <div class="sidebar-header">
-          <h2>Whisper</h2>
-          <span class="user-name">{user()?.displayName}</span>
-          <span class="user-email">{user()?.email}</span>
-          <button onClick={logout} class="btn-logout">Logout</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h2>Whisper</h2>
+            <button onClick={logout} class="btn-logout">Logout</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <span class="user-name">{user()?.displayName}</span>
+            <span class="user-email">{user()?.email}</span>
+          </div>
         </div>
         <AddFriend />
         <PendingRequests />

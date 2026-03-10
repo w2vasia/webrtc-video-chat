@@ -4,6 +4,7 @@ import { wsClient } from "../lib/ws";
 import { deriveSharedKey, encrypt, decrypt, importPublicKey, generateKeyPair, exportPublicKey, exportPrivateKey, importPrivateKey } from "../lib/crypto";
 import { storeKey, getKey } from "../lib/keystore";
 import { api } from "../lib/api";
+import { useAuth } from "./auth";
 
 export interface ChatMessage {
   id: string;
@@ -69,13 +70,15 @@ export function useChat() {
 
   async function loadHistory(friendId: number) {
     if (state.conversations[friendId]?.length) return; // already loaded
+    const { user } = useAuth();
+    const myId = user()?.id;
     const sharedKey = await getSharedKey(friendId);
     const res = await api(`/api/messages/${friendId}`);
     const msgs: ChatMessage[] = [];
     for (const m of res.messages) {
       try {
         const text = await decrypt(sharedKey, m.ciphertext, m.nonce);
-        msgs.push({ id: String(m.id), from: m.from, to: m.to, text, timestamp: m.timestamp });
+        msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp });
       } catch {
         // skip messages that can't be decrypted
       }

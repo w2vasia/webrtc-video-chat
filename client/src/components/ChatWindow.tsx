@@ -41,9 +41,14 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
   return (
     <div class="chat-window">
       <div class="chat-header">
-        <button class="btn-back" onClick={props.onBack}>&#8592;</button>
-        <span>Chat</span>
-        <button class="btn-call" onClick={() => props.onStartCall?.(props.friendId)}>Call</button>
+        <button class="btn-back" onClick={props.onBack}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10H5M5 10l5-5M5 10l5 5"/></svg>
+        </button>
+        <h3>Chat</h3>
+        <button class="btn-call" onClick={() => props.onStartCall?.(props.friendId)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+          Call
+        </button>
       </div>
 
       <div class="messages">
@@ -71,7 +76,9 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
           onKeyDown={handleKeyDown}
           rows={1}
         />
-        <button type="submit">Send</button>
+        <button type="submit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
       </form>
     </div>
   );
