@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { wsClient } from "../lib/ws";
-import { deriveSharedKey, encrypt, decrypt, importPublicKey, generateKeyPair, exportPublicKey, exportPrivateKey, importPrivateKey } from "../lib/crypto";
+import { deriveSharedKey, encrypt, decrypt, importPublicKey, generateKeyPair, exportPublicKey } from "../lib/crypto";
 import { storeKey, getKey } from "../lib/keystore";
 import { api } from "../lib/api";
 import { useAuth } from "./auth";
@@ -13,6 +13,7 @@ export interface ChatMessage {
   text: string;
   timestamp: number;
   pending?: boolean;
+  failed?: boolean;
 }
 
 interface ChatState {
@@ -51,16 +52,12 @@ export function useChat() {
     const storedPrivate = await getKey("privateKey");
     const storedPublic = await getKey("publicKey");
 
-    if (storedPrivate && storedPublic) {
-      myKeyPair = {
-        privateKey: await importPrivateKey(storedPrivate),
-        publicKey: await importPublicKey(storedPublic),
-      };
+    if (storedPrivate instanceof CryptoKey && storedPublic instanceof CryptoKey) {
+      myKeyPair = { privateKey: storedPrivate, publicKey: storedPublic };
     } else {
       myKeyPair = await generateKeyPair();
-      await storeKey("privateKey", await exportPrivateKey(myKeyPair.privateKey));
-      const pub = await exportPublicKey(myKeyPair.publicKey);
-      await storeKey("publicKey", pub);
+      await storeKey("privateKey", myKeyPair.privateKey);
+      await storeKey("publicKey", myKeyPair.publicKey);
     }
 
     const pub = await exportPublicKey(myKeyPair!.publicKey);
@@ -103,7 +100,9 @@ export function useChat() {
         try {
           const text = await decrypt(sharedKey, m.ciphertext, m.nonce);
           msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp });
-        } catch {}
+        } catch {
+          msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text: "[Unable to decrypt]", timestamp: m.timestamp });
+        }
       }
       if (!beforeId) historyLoaded.add(friendId);
       setState("hasMore", friendId, res.messages.length >= 50);
@@ -123,8 +122,9 @@ export function useChat() {
     const sharedKey = await getSharedKey(friendId);
     const { ciphertext, nonce } = await encrypt(sharedKey, text);
 
+    const clientId = crypto.randomUUID();
     const msg: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: clientId,
       from: 0,
       to: friendId,
       text,
@@ -133,29 +133,32 @@ export function useChat() {
     };
 
     setState("conversations", friendId, (prev = []) => [...prev, msg]);
-    wsClient.send({ type: "chat", to: friendId, ciphertext, nonce });
 
-    setState("conversations", friendId, (msgs) =>
-      msgs.map((m) => (m.id === msg.id ? { ...m, pending: false } : m)),
-    );
+    const sent = wsClient.send({ type: "chat", to: friendId, ciphertext, nonce, clientId });
+    if (!sent) {
+      setState("conversations", friendId, (msgs) =>
+        msgs.map((m) => (m.id === clientId ? { ...m, pending: false, failed: true } : m)),
+      );
+    }
   }
 
-  function setupListeners() {
-    wsClient.on("presence", (data) => {
+  function setupListeners(): () => void {
+    const unsubs: (() => void)[] = [];
+    unsubs.push(wsClient.on("presence", (data) => {
       setState("onlineUsers", (prev) => {
         const next = new Set(prev);
         data.online ? next.add(data.userId) : next.delete(data.userId);
         return next;
       });
-    });
+    }));
 
-    wsClient.on("chat", async (data) => {
+    unsubs.push(wsClient.on("chat", async (data) => {
       try {
         const sharedKey = await getSharedKey(data.from);
         const text = await decrypt(sharedKey, data.ciphertext, data.nonce);
 
         const msg: ChatMessage = {
-          id: crypto.randomUUID(),
+          id: data.id ? String(data.id) : crypto.randomUUID(),
           from: data.from,
           to: 0,
           text,
@@ -175,16 +178,33 @@ export function useChat() {
           if (Notification.permission === "granted" && navigator.serviceWorker?.controller) {
             const reg = await navigator.serviceWorker.ready;
             reg.showNotification(title, {
-              body: text.length > 100 ? text.slice(0, 100) + "..." : text,
+              body: "New message",
               tag: `chat-${data.from}`,
               data: { friendId: data.from },
             });
           }
         }
-      } catch (err) {
-        console.error("Failed to decrypt message", err);
+      } catch {
+        const msg: ChatMessage = {
+          id: data.id ? String(data.id) : crypto.randomUUID(),
+          from: data.from, to: 0, text: "[Unable to decrypt]", timestamp: data.timestamp,
+        };
+        setState("conversations", data.from, (prev = []) => [...prev, msg]);
       }
-    });
+    }));
+
+    unsubs.push(wsClient.on("chat-ack", (data) => {
+      // Find conversation containing this clientId and mark delivered
+      for (const [fid, msgs] of Object.entries(state.conversations)) {
+        const idx = msgs.findIndex((m) => m.id === data.clientId);
+        if (idx !== -1) {
+          setState("conversations", Number(fid), idx, { pending: false, id: String(data.serverId) });
+          break;
+        }
+      }
+    }));
+
+    return () => unsubs.forEach((fn) => fn());
   }
 
   function setActiveFriend(id: number | null) {

@@ -5,6 +5,7 @@ class WsClient {
   private handlers = new Map<string, Set<MessageHandler>>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private token: string | null = null;
+  private reconnectDelay = 1000;
 
   connect(token: string) {
     this.token = token;
@@ -12,22 +13,23 @@ class WsClient {
     this.ws = new WebSocket(`${proto}//${location.host}/ws`);
 
     this.ws.onopen = () => {
-      console.log("[ws] connected, authenticating...");
+      this.reconnectDelay = 1000;
       this.ws!.send(JSON.stringify({ type: "auth", token }));
     };
 
     this.ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      console.log("[ws] received:", data.type, data);
+      if (import.meta.env.DEV) console.log("[ws] received:", data.type, data);
       const handlers = this.handlers.get(data.type);
       if (handlers) handlers.forEach((h) => h(data));
     };
 
-    this.ws.onclose = (e) => {
-      console.log("[ws] closed:", e.code, e.reason);
+    this.ws.onclose = () => {
+      const delay = this.reconnectDelay + Math.random() * 500;
       this.reconnectTimer = setTimeout(() => {
         if (this.token) this.connect(this.token);
-      }, 3000);
+      }, delay);
+      this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
     };
 
     this.ws.onerror = (e) => {
@@ -42,10 +44,12 @@ class WsClient {
     this.ws = null;
   }
 
-  send(data: any) {
+  send(data: any): boolean {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
+      return true;
     }
+    return false;
   }
 
   on(type: string, handler: MessageHandler) {

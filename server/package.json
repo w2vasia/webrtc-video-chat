@@ -7,11 +7,10 @@
   },
   "dependencies": {
     "hono": "^4",
-    "@hono/node-ws": "^1",
     "web-push": "^3"
   },
   "devDependencies": {
     "@types/web-push": "^3",
-    "bun-types": "latest"
+    "bun-types": "^1.2"
   }
 }

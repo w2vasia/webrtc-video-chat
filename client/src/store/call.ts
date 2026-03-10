@@ -15,49 +15,57 @@ let pendingSenderId: number | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
 
 export function useCall() {
-  function setupCallListeners() {
-    wsClient.on("call-offer", async (data) => {
+  function setupCallListeners(): () => void {
+    const unsubs: (() => void)[] = [];
+    unsubs.push(wsClient.on("call-offer", async (data) => {
       pendingCandidates = [];
       setCallTargetId(data.senderId);
       setCallStatus("incoming");
       pendingOffer = data.offer;
       pendingSenderId = data.senderId;
-    });
+    }));
 
-    wsClient.on("call-answer", async (data) => {
+    unsubs.push(wsClient.on("call-answer", async (data) => {
       const call = activeCall();
       if (call) {
         await call.handleAnswer(data.answer);
         setCallStatus("connected");
       }
-    });
+    }));
 
-    wsClient.on("ice-candidate", async (data) => {
+    unsubs.push(wsClient.on("ice-candidate", async (data) => {
       const call = activeCall();
       if (call) {
         await call.handleIceCandidate(data.candidate);
       } else {
         pendingCandidates.push(data.candidate);
       }
-    });
+    }));
 
-    wsClient.on("call-end", () => {
+    unsubs.push(wsClient.on("call-end", () => {
       endCall();
-    });
+    }));
+
+    return () => unsubs.forEach((fn) => fn());
   }
 
   async function startCall(targetId: number) {
-    const call = new WebRTCCall(targetId);
-    call.onRemoteStream = (s) => setRemoteStream(s);
-    call.onEnded = () => endCall();
+    try {
+      const call = new WebRTCCall(targetId);
+      call.onRemoteStream = (s) => setRemoteStream(s);
+      call.onEnded = () => endCall();
 
-    const stream = await call.startLocalMedia();
-    setLocalStream(stream);
-    setActiveCall(call);
-    setCallTargetId(targetId);
-    setCallStatus("calling");
+      const stream = await call.startLocalMedia();
+      setLocalStream(stream);
+      setActiveCall(call);
+      setCallTargetId(targetId);
+      setCallStatus("calling");
 
-    await call.createOffer();
+      await call.createOffer();
+    } catch (e) {
+      console.error("Failed to start call", e);
+      endCall();
+    }
   }
 
   async function acceptCall() {
@@ -93,10 +101,11 @@ export function useCall() {
   }
 
   function endCall() {
+    if (callStatus() === "idle") return;
     const call = activeCall();
     if (call) {
-      call.localStream?.getTracks().forEach((t) => t.stop());
-      call.pc.close();
+      call.onEnded = undefined; // prevent re-entrant loop
+      call.end();
     }
     setActiveCall(null);
     setLocalStream(null);

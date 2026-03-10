@@ -23,7 +23,13 @@ export function getOnlineUsers() {
 export function createWsHandlers(db: Database) {
   return {
     async message(ws: ServerWebSocket<WsData>, message: string | Buffer) {
-      const data = JSON.parse(typeof message === "string" ? message : message.toString());
+      let data: any;
+      try {
+        data = JSON.parse(typeof message === "string" ? message : message.toString());
+      } catch {
+        ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
+        return;
+      }
 
       // Auth handshake must be first message
       if (!ws.data.authenticated) {
@@ -33,6 +39,13 @@ export function createWsHandlers(db: Database) {
             ws.data.userId = payload.sub;
             ws.data.email = payload.email;
             ws.data.authenticated = true;
+
+            // Close previous connection if user opens another tab
+            const existing = onlineUsers.get(payload.sub);
+            if (existing) {
+              existing.ws.send(JSON.stringify({ type: "session-replaced" }));
+              existing.ws.close(4000, "Session replaced");
+            }
 
             onlineUsers.set(payload.sub, { userId: payload.sub, email: payload.email, ws });
             db.query("UPDATE users SET last_seen = unixepoch() WHERE id = ?").run(payload.sub);
@@ -45,7 +58,7 @@ export function createWsHandlers(db: Database) {
               .all(payload.sub) as Array<{ id: number; sender_id: number; ciphertext: string; nonce: string; created_at: number }>;
 
             for (const msg of queued) {
-              ws.send(JSON.stringify({ type: "chat", from: msg.sender_id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
+              ws.send(JSON.stringify({ type: "chat", id: msg.id, from: msg.sender_id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
               db.query("UPDATE messages SET delivered = 1 WHERE id = ?").run(msg.id);
             }
 
@@ -71,35 +84,78 @@ export function createWsHandlers(db: Database) {
 
       const userId = ws.data.userId!;
 
+      const isFriend = (targetId: number) => {
+        const row = db.query(
+          "SELECT 1 FROM friendships WHERE ((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = 'accepted'"
+        ).get(userId, targetId, targetId, userId);
+        return !!row;
+      };
+
+      // Max payload size for ciphertext/nonce (64KB)
+      const MAX_PAYLOAD = 65536;
+
       switch (data.type) {
         case "chat": {
+          if (typeof data.to !== "number" || !Number.isInteger(data.to)) break;
+          if (typeof data.ciphertext !== "string" || data.ciphertext.length > MAX_PAYLOAD) break;
+          if (typeof data.nonce !== "string" || data.nonce.length > 64) break;
+          if (!isFriend(data.to)) {
+            ws.send(JSON.stringify({ type: "error", message: "Not friends" }));
+            break;
+          }
           const recipient = onlineUsers.get(data.to);
           const timestamp = Math.floor(Date.now() / 1000);
           const msg = { type: "chat", from: userId, ciphertext: data.ciphertext, nonce: data.nonce, timestamp };
 
           // Always persist
-          db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
+          const result = db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, ?)").run(
             userId, data.to, data.ciphertext, data.nonce, recipient ? 1 : 0,
           );
 
+          // ACK to sender with server-assigned ID
+          ws.send(JSON.stringify({ type: "chat-ack", clientId: data.clientId, serverId: Number(result.lastInsertRowid), timestamp }));
+
           if (recipient) {
-            recipient.ws.send(JSON.stringify(msg));
+            recipient.ws.send(JSON.stringify({ ...msg, id: Number(result.lastInsertRowid) }));
           }
           break;
         }
 
-        case "call-offer":
-        case "call-answer":
-        case "ice-candidate":
-        case "call-end": {
+        case "call-offer": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
-            target.ws.send(JSON.stringify({ ...data, senderId: userId }));
+            target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, sdp: data.sdp }));
+          }
+          break;
+        }
+        case "call-answer": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          const target = onlineUsers.get(data.targetId);
+          if (target) {
+            target.ws.send(JSON.stringify({ type: "call-answer", senderId: userId, sdp: data.sdp }));
+          }
+          break;
+        }
+        case "ice-candidate": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          const target = onlineUsers.get(data.targetId);
+          if (target) {
+            target.ws.send(JSON.stringify({ type: "ice-candidate", senderId: userId, candidate: data.candidate }));
+          }
+          break;
+        }
+        case "call-end": {
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          const target = onlineUsers.get(data.targetId);
+          if (target) {
+            target.ws.send(JSON.stringify({ type: "call-end", senderId: userId }));
           }
           break;
         }
 
         case "typing": {
+          if (typeof data.to !== "number" || !isFriend(data.to)) break;
           const target = onlineUsers.get(data.to);
           if (target) {
             target.ws.send(JSON.stringify({ type: "typing", from: userId }));

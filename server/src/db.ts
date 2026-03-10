@@ -31,10 +31,9 @@ export function migrate(db: Database): void {
     const applied = db.query("SELECT 1 FROM _migrations WHERE name = ?").get(file);
     if (applied) continue;
     const sql = readFileSync(join(migrationsDir, file), "utf-8");
-    const statements = sql
-      .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    // bun:sqlite exec() only runs first statement; split on semicolons
+    // NOTE: avoid semicolons inside string literals in migrations
+    const statements = sql.split(";").map((s) => s.trim()).filter((s) => s.length > 0);
     for (const stmt of statements) {
       db.exec(stmt);
     }

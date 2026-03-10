@@ -2,7 +2,7 @@
   "name": "webrtc-video-chat",
   "private": true,
   "scripts": {
-    "dev": "bun run dev:server & bun run dev:client",
+    "dev": "bun run dev:server & bun run dev:client & wait",
     "dev:server": "cd server && bun run dev",
     "dev:client": "cd client && bun run dev",
     "build": "cd client && bun run build && cd ../server && bun run build",
