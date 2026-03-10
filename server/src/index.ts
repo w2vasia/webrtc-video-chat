@@ -5,9 +5,11 @@ import { getDb, migrate } from "./db";
 import { authRoutes } from "./routes/auth";
 import { friendRoutes } from "./routes/friends";
 import { keyRoutes } from "./routes/keys";
+import { pushRoutes } from "./routes/push";
 import { authMiddleware } from "./middleware/auth";
 import { createWsHandlers, type WsData } from "./ws";
-import { mkdirSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
+import { join } from "path";
 
 // Ensure data dir
 mkdirSync("data", { recursive: true });
@@ -26,9 +28,22 @@ app.route("/api/auth", authRoutes(db));
 app.use("/api/*", authMiddleware());
 app.route("/api/friends", friendRoutes(db));
 app.route("/api/keys", keyRoutes(db));
+app.route("/api/push", pushRoutes(db));
 
 // Health check
 app.get("/api/health", (c) => c.json({ ok: true }, 200));
+
+// In production, serve client build
+const clientDist = join(import.meta.dir, "../../client/dist");
+if (existsSync(clientDist)) {
+  app.get("*", async (c) => {
+    const filePath = join(clientDist, c.req.path);
+    const file = Bun.file(filePath);
+    if (await file.exists()) return new Response(file);
+    // SPA fallback
+    return new Response(Bun.file(join(clientDist, "index.html")));
+  });
+}
 
 const wsHandlers = createWsHandlers(db);
 
