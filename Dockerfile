@@ -1,40 +1,20 @@
-# Build stage
-FROM node:18-alpine AS builder
-
+FROM oven/bun:1 AS builder
 WORKDIR /app
+COPY package.json bun.lockb* ./
+COPY server/package.json server/
+COPY client/package.json client/
+RUN bun install --frozen-lockfile
+COPY . .
+RUN cd client && bun run build
+RUN cd server && bun build src/index.ts --outdir dist --target bun
 
-# Copy package files
-COPY package*.json ./
-COPY tsconfig.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy source files
-COPY src ./src
-COPY public ./public
-
-# Build TypeScript
-RUN npm run build
-
-# Production stage
-FROM node:18-alpine
-
+FROM oven/bun:1-slim
 WORKDIR /app
-
-# Copy package files and install production dependencies only
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy built files from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/public ./public
-
-# Expose port
+COPY --from=builder /app/server/dist ./server/dist
+COPY --from=builder /app/server/migrations ./server/migrations
+COPY --from=builder /app/client/dist ./client/dist
+COPY --from=builder /app/server/package.json ./server/
+RUN cd server && bun install --production
 EXPOSE 3000
-
-# Set environment to production
 ENV NODE_ENV=production
-
-# Start the server
-CMD ["node", "dist/server.js"]
+CMD ["bun", "run", "server/dist/index.js"]
