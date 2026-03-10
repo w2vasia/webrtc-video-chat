@@ -27,6 +27,10 @@ export function keyRoutes(db: Database) {
     const requesterId = c.get("userId") as number;
     const targetId = Number(c.req.param("userId"));
 
+    if (!Number.isInteger(targetId) || targetId <= 0) {
+      return c.json({ error: "Invalid user ID" }, 400);
+    }
+
     // Allow fetching own keys or friend's keys
     if (targetId !== requesterId) {
       const friendship = db.query(
