@@ -120,3 +120,122 @@ body {
   .sidebar { width: 100%; position: absolute; z-index: 10; }
   .chat-layout { position: relative; }
 }
+
+/* Friend list */
+.friend-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.friend-item:hover, .friend-item.active { background: var(--surface-2); }
+.friend-avatar {
+  width: 40px; height: 40px;
+  background: var(--primary);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem; color: white;
+  flex-shrink: 0;
+}
+.friend-info { display: flex; flex-direction: column; min-width: 0; }
+.friend-name { font-weight: 600; font-size: 0.95rem; }
+.friend-email { font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+
+/* Add friend */
+.add-friend {
+  display: flex; gap: 8px; padding: 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.add-friend input {
+  flex: 1; padding: 8px 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-size: 0.85rem; outline: none; min-width: 0;
+}
+.add-friend button {
+  padding: 8px 16px; background: var(--primary); color: white;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  font-weight: 600; font-size: 0.85rem;
+}
+.success-msg { color: var(--success); font-size: 0.8rem; width: 100%; }
+.error-msg { color: var(--danger); font-size: 0.8rem; width: 100%; }
+
+/* Pending requests */
+.pending-requests {
+  padding: 12px; border-bottom: 1px solid var(--border);
+}
+.pending-requests h3 { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+.pending-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: 0.9rem;
+}
+.pending-actions { display: flex; gap: 6px; }
+.btn-accept {
+  padding: 4px 10px; background: var(--success); color: white;
+  border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+}
+.btn-reject {
+  padding: 4px 10px; background: var(--danger); color: white;
+  border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+}
+
+/* Chat window */
+.chat-window {
+  display: flex; flex-direction: column;
+  height: 100dvh; width: 100%;
+}
+.chat-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px; border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.btn-back {
+  display: none; background: none; border: none;
+  color: var(--text); font-size: 1.5rem; cursor: pointer;
+}
+@media (max-width: 768px) { .btn-back { display: block; } }
+.btn-call {
+  padding: 6px 16px; background: var(--success); color: white;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  font-weight: 600; margin-left: auto;
+}
+
+.messages {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.message { display: flex; }
+.message.sent { justify-content: flex-end; }
+.message.received { justify-content: flex-start; }
+.message-bubble {
+  max-width: 70%; padding: 10px 14px;
+  border-radius: 16px; word-break: break-word;
+}
+.sent .message-bubble { background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+.received .message-bubble { background: var(--surface-2); border-bottom-left-radius: 4px; }
+.message-time { display: block; font-size: 0.7rem; opacity: 0.7; margin-top: 4px; text-align: right; }
+
+.chat-input {
+  display: flex; gap: 8px; padding: 12px 16px;
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+.chat-input textarea {
+  flex: 1; padding: 10px 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-size: 0.95rem; resize: none; outline: none;
+  font-family: inherit; line-height: 1.4;
+}
+.chat-input button {
+  padding: 10px 20px; background: var(--primary); color: white;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  font-weight: 600;
+}
