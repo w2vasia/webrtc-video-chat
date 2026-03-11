@@ -31,4 +31,13 @@ describe("database", () => {
     expect(rows2).toEqual(rows1);
     expect(rows2.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("creates idx_messages_conversation index after migrate()", () => {
+    const db = getDb(":memory:");
+    migrate(db);
+    const idx = db
+      .query("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_messages_conversation'")
+      .get() as { name: string } | null;
+    expect(idx).not.toBeNull();
+  });
 });
