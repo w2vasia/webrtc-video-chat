@@ -626,6 +626,14 @@ describe("message — call signaling", () => {
     );
     expect(wsB.sent).toHaveLength(0);
   });
+
+  it("drops call-answer with oversized SDP", async () => {
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-answer", targetId: userAId, answer: { sdp: "x".repeat(8193), type: "answer" } }),
+    );
+    expect(wsA.sent).toHaveLength(0);
+  });
 });
 
 // ─── ping/pong ────────────────────────────────────────────────────────────────
