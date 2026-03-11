@@ -9,6 +9,7 @@ export function getDb(path: string = "data/app.db"): Database {
   const db = new Database(path);
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA foreign_keys = ON");
+  db.exec("PRAGMA busy_timeout = 5000");
   if (path !== ":memory:") _db = db;
   return db;
 }
@@ -34,9 +35,11 @@ export function migrate(db: Database): void {
     // bun:sqlite exec() only runs first statement; split on semicolons
     // NOTE: avoid semicolons inside string literals in migrations
     const statements = sql.split(";").map((s) => s.trim()).filter((s) => s.length > 0);
-    for (const stmt of statements) {
-      db.exec(stmt);
-    }
-    db.query("INSERT INTO _migrations (name) VALUES (?)").run(file);
+    db.transaction(() => {
+      for (const stmt of statements) {
+        db.exec(stmt);
+      }
+      db.query("INSERT INTO _migrations (name) VALUES (?)").run(file);
+    })();
   }
 }
