@@ -172,6 +172,7 @@ describe("DELETE /api/messages/:friendId", () => {
   });
 
   it("returns deleted=0 when no messages exist", async () => {
+    makeFriends(userAId, userBId);
     const res = await app.request(`/api/messages/${userBId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${tokenA}` },
@@ -192,5 +193,25 @@ describe("DELETE /api/messages/:friendId", () => {
   it("requires authentication", async () => {
     const res = await app.request(`/api/messages/${userBId}`, { method: "DELETE" });
     expect(res.status).toBe(401);
+  });
+
+  it("returns 403 when deleting messages with a non-friend", async () => {
+    const hash = await Bun.password.hash("password123", { algorithm: "argon2id" });
+    const userC = db
+      .query("INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?) RETURNING id")
+      .get("charlie@test.com", hash, "Charlie") as { id: number };
+
+    // Insert a message directly (bypassing friendship)
+    db.query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, 1)")
+      .run(userAId, userC.id, "cipher==", "nonce1234567890a");
+
+    const res = await app.request(`/api/messages/${userC.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    expect(res.status).toBe(403);
+
+    const count = db.query("SELECT COUNT(*) as n FROM messages").get() as { n: number };
+    expect(count.n).toBe(1);
   });
 });
