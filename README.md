@@ -4,7 +4,7 @@ E2E encrypted messaging + WebRTC video calls. PWA.
 
 ## Stack
 
-- **Client:** SolidJS + Vite + Web Crypto API (X25519 + AES-256-GCM)
+- **Client:** SolidJS + Vite + Tailwind CSS v4 + Web Crypto API (X25519 + AES-256-GCM)
 - **Server:** Hono + Bun + SQLite (bun:sqlite)
 - **Auth:** Argon2id (Bun.password) + JWT
 - **Video:** WebRTC peer-to-peer
@@ -14,7 +14,7 @@ E2E encrypted messaging + WebRTC video calls. PWA.
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) v1.0+
+- [Bun](https://bun.sh/) v1.2+
 
 ### Setup
 
@@ -82,6 +82,7 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 - Read receipts
 - Typing indicators (auto-cleared server-side after 5s)
 - WebRTC video/audio calls with cam/mic toggle, ringtone
+- System events for calls (call ended duration, missed calls)
 - Online presence indicators (broadcast on connect/disconnect)
 - Toast notifications
 - PWA (installable, offline-capable)
@@ -97,20 +98,22 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 │   │   ├── index.ts          # Hono entrypoint + Bun.serve
 │   │   ├── db.ts             # SQLite + migrations
 │   │   ├── auth.ts           # Argon2 + JWT helpers
-│   │   ├── ws.ts             # WebSocket handlers (chat relay, signaling, presence)
+│   │   ├── ws.ts             # WebSocket handlers (chat relay, signaling, presence, system events)
 │   │   ├── routes/
 │   │   │   ├── auth.ts       # POST /register, /login
 │   │   │   ├── friends.ts    # Search, request, accept, list
-│   │   │   ├── ice.ts        # ICE server config
+│   │   │   ├── ice.ts        # ICE server config (STUN/TURN)
 │   │   │   ├── keys.ts       # Public key exchange
-│   │   │   ├── messages.ts   # Message history
+│   │   │   ├── messages.ts   # Message history + system events
 │   │   │   └── push.ts       # Push subscription
 │   │   └── middleware/
 │   │       ├── auth.ts       # JWT verification
 │   │       └── rateLimit.ts  # IP-based rate limiting
 │   └── migrations/
-│       ├── 001_init.sql      # Schema
-│       └── 002_read_receipts.sql
+│       ├── 001_init.sql
+│       ├── 002_read_receipts.sql
+│       ├── 003_conversation_index.sql
+│       └── 004_system_events.sql
 ├── client/
 │   ├── src/
 │   │   ├── index.tsx         # SolidJS entry
@@ -122,7 +125,10 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 │   │   └── styles/
 │   └── vite.config.ts
 ├── scripts/
-│   └── generate-vapid.ts
+│   ├── seed.ts               # Seed DB with test data
+│   └── generate-vapid.ts     # Generate VAPID keys for push
+├── docs/
+│   └── plans/                # Feature specs and implementation plans
 ├── .github/
 │   └── workflows/ci.yml      # GitHub Actions: bun test + vitest on push/PR
 ├── Dockerfile
