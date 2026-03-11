@@ -1,5 +1,7 @@
 import { wsClient } from "./ws";
 
+export type CallType = "voice" | "video";
+
 async function getIceServers(): Promise<RTCIceServer[]> {
   try {
     const token = localStorage.getItem("token");
@@ -16,6 +18,7 @@ export class WebRTCCall {
   localStream: MediaStream | null = null;
   remoteStream = new MediaStream();
   targetId: number;
+  callType: CallType;
   onRemoteStream?: (stream: MediaStream) => void;
   onConnected?: () => void;
   onEnded?: () => void;
@@ -27,13 +30,14 @@ export class WebRTCCall {
   private giveUpTimer?: ReturnType<typeof setTimeout>;
   private ended = false;
 
-  static async create(targetId: number): Promise<WebRTCCall> {
+  static async create(targetId: number, callType: CallType = "video"): Promise<WebRTCCall> {
     const iceServers = await getIceServers();
-    return new WebRTCCall(targetId, { iceServers, iceCandidatePoolSize: 10 });
+    return new WebRTCCall(targetId, callType, { iceServers, iceCandidatePoolSize: 10 });
   }
 
-  constructor(targetId: number, config?: RTCConfiguration) {
+  constructor(targetId: number, callType: CallType = "video", config?: RTCConfiguration) {
     this.targetId = targetId;
+    this.callType = callType;
     this.pc = new RTCPeerConnection(config ?? { iceServers: [{ urls: "stun:stun.l.google.com:19302" }], iceCandidatePoolSize: 10 });
 
     this.pc.ontrack = (e) => {
@@ -102,7 +106,7 @@ export class WebRTCCall {
   async createOffer(): Promise<void> {
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
-    wsClient.send({ type: "call-offer", targetId: this.targetId, offer });
+    wsClient.send({ type: "call-offer", targetId: this.targetId, offer, callType: this.callType });
   }
 
   async handleOffer(offer: RTCSessionDescriptionInit): Promise<void> {
@@ -150,6 +154,19 @@ export class WebRTCCall {
     const track = this.localStream?.getAudioTracks()[0];
     if (track) { track.enabled = !track.enabled; return track.enabled; }
     return false;
+  }
+
+  async addVideoTrack(): Promise<MediaStream> {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
+    });
+    const videoTrack = stream.getVideoTracks()[0];
+    this.pc.addTrack(videoTrack, this.localStream!);
+    if (this.localStream) {
+      this.localStream.addTrack(videoTrack);
+    }
+    this.callType = "video";
+    return this.localStream!;
   }
 
   end() {
