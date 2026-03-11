@@ -17,8 +17,9 @@ export function authRoutes(db: Database) {
     if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return c.json({ error: "Invalid email format" }, 400);
     }
-    if (displayName.length > 100) {
-      return c.json({ error: "Display name too long" }, 400);
+    const trimmedName = displayName.trim();
+    if (trimmedName.length === 0 || trimmedName.length > 100) {
+      return c.json({ error: "Display name must be 1-100 characters" }, 400);
     }
     if (password.length < 8 || password.length > 256) {
       return c.json({ error: "Password must be 8-256 characters" }, 400);
@@ -32,7 +33,7 @@ export function authRoutes(db: Database) {
     const passwordHash = await hashPassword(password);
     const result = db
       .query("INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?) RETURNING id, email, display_name")
-      .get(email, passwordHash, displayName) as { id: number; email: string; display_name: string };
+      .get(email, passwordHash, trimmedName) as { id: number; email: string; display_name: string };
 
     const token = await createToken(result.id, result.email);
 
