@@ -157,6 +157,7 @@ export function createWsHandlers(db: Database) {
         }
 
         case "read": {
+          if (data.senderId === userId) break;
           if (typeof data.messageId !== "number" || !Number.isInteger(data.messageId)) break;
           if (typeof data.senderId !== "number" || !Number.isInteger(data.senderId)) break;
           if (!isFriend(data.senderId)) break;

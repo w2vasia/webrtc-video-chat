@@ -499,12 +499,19 @@ describe("message — read", () => {
     expect(wsC.sent).toHaveLength(0);
     // A (the real sender) must NOT receive it either (wrong senderId)
     expect(wsA.sent).toHaveLength(0);
+    // read_at must remain NULL in DB
+    const row = db.query("SELECT read_at FROM messages WHERE id = ?").get(msg.id) as { read_at: number | null };
+    expect(row.read_at).toBeNull();
   });
 
   it("drops read message with non-integer messageId", async () => {
     const userA = await createUser(db, "alice@test.com", "Alice");
     const userB = await createUser(db, "bob@test.com", "Bob");
     makeFriends(db, userA.id, userB.id);
+
+    const msg = db
+      .query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, 1) RETURNING id")
+      .get(userA.id, userB.id, "cipher==", "nonce1234567890a") as { id: number };
 
     const wsA = makeMockWs();
     const wsB = makeMockWs();
@@ -518,6 +525,8 @@ describe("message — read", () => {
     );
 
     expect(wsA.sent).toHaveLength(0);
+    const row = db.query("SELECT read_at FROM messages WHERE id = ?").get(msg.id) as { read_at: number | null };
+    expect(row.read_at).toBeNull();
   });
 });
 
