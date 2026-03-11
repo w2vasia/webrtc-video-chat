@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS builder
+FROM oven/bun:1.2.5 AS builder
 WORKDIR /app
 COPY package.json bun.lockb* ./
 COPY server/package.json server/
@@ -8,7 +8,7 @@ COPY . .
 RUN cd client && bun run build
 RUN cd server && bun build src/index.ts --outdir dist --target bun
 
-FROM oven/bun:1-slim
+FROM oven/bun:1.2.5-slim
 WORKDIR /app
 COPY --from=builder /app/server/dist ./server/dist
 COPY --from=builder /app/server/migrations ./server/migrations

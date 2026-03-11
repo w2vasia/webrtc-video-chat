@@ -9,11 +9,22 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET}
+      - CLIENT_ORIGIN=${CLIENT_ORIGIN}
+      - TRUST_PROXY=true
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_MAILTO=${VAPID_MAILTO}
+      - TURN_URL=${TURN_URL}
+      - TURN_USERNAME=${TURN_USERNAME}
+      - TURN_CREDENTIAL=${TURN_CREDENTIAL}
     volumes:
       - app-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
 volumes:
