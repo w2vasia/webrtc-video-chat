@@ -78,3 +78,11 @@ const server = Bun.serve({
 });
 
 console.log(`Server running on http://localhost:${server.port}`);
+
+function shutdown() {
+  server.stop(true);
+  db.close();
+  process.exit(0);
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

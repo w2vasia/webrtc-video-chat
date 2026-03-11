@@ -117,10 +117,10 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
         </button>
         <h3 class="font-semibold text-[1.0625rem] text-gray-900">Chat</h3>
         <button
-          class="ml-auto flex items-center px-4 py-2 bg-green-500 hover:opacity-90 text-white rounded-full font-semibold text-sm font-[inherit] cursor-pointer min-h-[40px] transition-opacity"
+          class="ml-auto flex items-center gap-1.5 px-4 py-2 bg-success hover:bg-success-hover text-white rounded-full font-semibold text-sm font-[inherit] cursor-pointer min-h-[40px] transition-colors"
           onClick={() => props.onStartCall?.(props.friendId)}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{"vertical-align":"-2px","margin-right":"6px"}}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
           Call
         </button>
       </div>
@@ -130,8 +130,8 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
         <div class="flex items-center gap-2.5 px-5 py-2.5 bg-success-soft text-gray-900 font-medium text-[0.9375rem] border-b border-gray-200 animate-pulse-bg">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
           <span>Incoming call</span>
-          <button class="ml-auto px-4 py-1.5 bg-green-500 hover:opacity-90 text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-opacity" onClick={acceptCall}>Accept</button>
-          <button class="px-4 py-1.5 bg-red-500 hover:opacity-90 text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-opacity" onClick={rejectCall}>Decline</button>
+          <button class="ml-auto px-4 py-1.5 bg-success hover:bg-success-hover text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-colors" onClick={acceptCall}>Accept</button>
+          <button class="px-4 py-1.5 bg-danger hover:bg-danger-hover text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-colors" onClick={rejectCall}>Decline</button>
         </div>
       </Show>
 
@@ -168,7 +168,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
       </div>
 
       {/* Error */}
-      {error() && <p class="text-red-500 text-sm px-4 py-2">{error()}</p>}
+      {error() && <p class="text-danger text-sm px-4 py-2">{error()}</p>}
 
       {/* Input */}
       <form class="flex items-end gap-3 px-4 py-3 bg-white border-t border-gray-200" onSubmit={handleSend}>

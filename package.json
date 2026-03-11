@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run dev:server & bun run dev:client & wait",
+    "dev": "trap 'kill 0' INT TERM; bun run dev:server & bun run dev:client & wait",
     "dev:server": "cd server && bun run dev",
     "dev:client": "cd client && bun run dev",
     "build": "cd client && bun run build && cd ../server && bun run build",

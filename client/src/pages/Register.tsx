@@ -39,7 +39,7 @@ export default function Register() {
         <h1 class="text-primary text-4xl text-center font-semibold">Whisper</h1>
         <h2 class="text-gray-500 text-xl text-center font-normal">Create Account</h2>
         <p class="text-gray-400 text-sm text-center">End-to-end encrypted messaging</p>
-        {error() && <p class="text-red-500 text-sm text-center">{error()}</p>}
+        {error() && <p class="text-danger text-sm text-center">{error()}</p>}
         <input class={inputCls} type="text" placeholder="Display Name" value={displayName()} onInput={(e) => setDisplayName(e.target.value)} autocomplete="name" required />
         <input class={inputCls} type="email" placeholder="Email" value={email()} onInput={(e) => setEmail(e.target.value)} autocomplete="email" required />
         <input class={inputCls} type="password" placeholder="Password (min 8 chars)" value={password()} onInput={(e) => setPassword(e.target.value)} autocomplete="new-password" minLength={8} required />
