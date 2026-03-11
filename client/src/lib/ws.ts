@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 
 export const [wsConnected, setWsConnected] = createSignal(false);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MessageHandler = (data: any) => void;
 
 class WsClient {
@@ -41,6 +42,8 @@ class WsClient {
       console.log("[ws] closed:", e.code, e.reason);
       setWsConnected(false);
       this.replayed = false;
+      // 4000 = session replaced (logged in elsewhere) — don't fight the new tab
+      if (e.code === 4000) return;
       const delay = this.retryDelay;
       this.retryDelay = Math.min(this.retryDelay * 2, this.MAX_DELAY);
       this.reconnectTimer = setTimeout(() => {
@@ -61,7 +64,7 @@ class WsClient {
     this.pendingMessages.clear();
   }
 
-  send(data: any): boolean {
+  send(data: Record<string, unknown>): boolean {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
       return true;

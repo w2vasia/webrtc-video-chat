@@ -24,6 +24,7 @@ export function getOnlineUsers() {
 export function createWsHandlers(db: Database) {
   return {
     async message(ws: ServerWebSocket<WsData>, message: string | Buffer) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let data: any;
       try {
         data = JSON.parse(typeof message === "string" ? message : message.toString());

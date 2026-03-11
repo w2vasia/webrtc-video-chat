@@ -1,4 +1,3 @@
-import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { wsClient } from "../lib/ws";
 import { deriveSharedKey, encrypt, decrypt, importPublicKey, generateKeyPair, exportPublicKey } from "../lib/crypto";
@@ -56,15 +55,34 @@ export function resetChat() { _resetFn?.(); }
 
 export function useChat() {
   async function initKeys() {
-    const storedPrivate = await getKey("privateKey");
-    const storedPublic = await getKey("publicKey");
+    const { user } = useAuth();
+    const userId = user()?.id;
+    if (!userId) throw new Error("Not logged in");
+
+    const privKey = `privateKey-${userId}`;
+    const pubKey = `publicKey-${userId}`;
+
+    let storedPrivate = await getKey(privKey);
+    let storedPublic = await getKey(pubKey);
+
+    // Migrate from legacy unscoped keys if user-scoped not yet stored
+    if (!(storedPrivate instanceof CryptoKey) || !(storedPublic instanceof CryptoKey)) {
+      const oldPrivate = await getKey("privateKey");
+      const oldPublic = await getKey("publicKey");
+      if (oldPrivate instanceof CryptoKey && oldPublic instanceof CryptoKey) {
+        await storeKey(privKey, oldPrivate);
+        await storeKey(pubKey, oldPublic);
+        storedPrivate = oldPrivate;
+        storedPublic = oldPublic;
+      }
+    }
 
     if (storedPrivate instanceof CryptoKey && storedPublic instanceof CryptoKey) {
       myKeyPair = { privateKey: storedPrivate, publicKey: storedPublic };
     } else {
       myKeyPair = await generateKeyPair();
-      await storeKey("privateKey", myKeyPair.privateKey);
-      await storeKey("publicKey", myKeyPair.publicKey);
+      await storeKey(privKey, myKeyPair.privateKey);
+      await storeKey(pubKey, myKeyPair.publicKey);
     }
 
     if (!myKeyPair) throw new Error("Key pair generation failed");
@@ -157,7 +175,7 @@ export function useChat() {
     unsubs.push(wsClient.on("presence", (data) => {
       setState("onlineUsers", (prev) => {
         const next = new Set(prev);
-        data.online ? next.add(data.userId) : next.delete(data.userId);
+        if (data.online) next.add(data.userId); else next.delete(data.userId);
         return next;
       });
     }));
@@ -166,6 +184,7 @@ export function useChat() {
       setState("typingUsers", data.from, !!data.isTyping);
     }));
 
+    // eslint-disable-next-line solid/reactivity -- WS event handler
     unsubs.push(wsClient.on("chat", async (data) => {
       try {
         const sharedKey = await getSharedKey(data.from);
@@ -210,17 +229,18 @@ export function useChat() {
 
     unsubs.push(wsClient.on("chat-ack", (data) => {
       wsClient.ackMessage(data.clientId);
-      setState("conversations", (convs) => {
-        const updated: typeof convs = {};
-        for (const [fid, msgs] of Object.entries(convs)) {
-          updated[Number(fid)] = msgs.map(m =>
-            m.id === data.clientId ? { ...m, serverId: String(data.serverId), timestamp: data.timestamp, pending: false } : m
-          );
-        }
-        return updated;
-      });
+      const fid = pendingMsgMap.get(data.clientId);
+      if (fid === undefined) return;
+      pendingMsgMap.delete(data.clientId);
+      const msgs = state.conversations[fid];
+      if (!msgs) return;
+      const idx = msgs.findIndex((m) => m.id === data.clientId);
+      if (idx !== -1) {
+        setState("conversations", fid, idx, { pending: false, id: String(data.serverId), timestamp: data.timestamp });
+      }
     }));
 
+    // eslint-disable-next-line solid/reactivity -- WS event handler
     unsubs.push(wsClient.on("read", (data) => {
       for (const friendId of Object.keys(state.conversations)) {
         setState("conversations", Number(friendId), (msgs) =>

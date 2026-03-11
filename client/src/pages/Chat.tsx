@@ -65,15 +65,15 @@ export default function Chat() {
       </Show>
 
       {/* Sidebar */}
-      <aside class={`flex flex-col flex-shrink-0 w-80 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-10 sm:static sm:z-auto transition-transform sm:transition-none ${sidebarOpen() ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside class={`flex flex-col flex-shrink-0 w-80 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-10 sm:static sm:z-auto transition-transform sm:transition-none ${sidebarOpen() ? "translate-x-0" : "-translate-x-full sm:translate-x-0"}`}>
         <div class="px-4 pt-5 pb-4 border-b border-gray-200 flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <h2 class="text-primary text-xl font-semibold">Whisper</h2>
-              <span
-                class={`w-2 h-2 rounded-full transition-colors ${wsConnected() ? "bg-green-500" : "bg-red-500 animate-pulse-dot"}`}
-                title={wsConnected() ? "Connected" : "Reconnecting..."}
-              />
+              <span class="flex items-center gap-1.5">
+                <span class={`w-2.5 h-2.5 rounded-full transition-colors ${wsConnected() ? "bg-green-500" : "bg-red-500 animate-pulse-dot"}`} />
+                {!wsConnected() && <span class="text-xs text-red-500 font-medium">Reconnecting…</span>}
+              </span>
             </div>
             <button
               class="px-3.5 py-1.5 bg-surface-2 hover:bg-surface-3 text-gray-500 hover:text-gray-900 rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer transition-colors min-h-[36px]"

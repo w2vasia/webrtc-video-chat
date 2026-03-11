@@ -1,7 +1,7 @@
 import { useCall } from "../store/call";
 
 export default function IncomingCall() {
-  const { acceptCall, rejectCall, callTargetId } = useCall();
+  const { acceptCall, rejectCall } = useCall();
 
   return (
     <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">

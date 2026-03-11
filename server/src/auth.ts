@@ -1,5 +1,4 @@
 import { sign, verify } from "hono/jwt";
-import type { Database } from "bun:sqlite";
 
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
   throw new Error("JWT_SECRET must be set in production");

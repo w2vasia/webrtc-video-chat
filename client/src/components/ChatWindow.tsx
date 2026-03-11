@@ -46,6 +46,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
 
   createEffect(() => {
     const msgs = messages();
+    const isTyping = state.typingUsers[props.friendId];
     if (!messagesContainer || !msgs.length) return;
     if (loadingMore()) return; // Don't auto-scroll during history load
     if (shouldScrollToBottom) {
@@ -56,6 +57,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
     if (scrollHeight - scrollTop - clientHeight < 150) {
       messagesEnd?.scrollIntoView({ behavior: "smooth" });
     }
+    isTyping; // track typing state to trigger scroll when indicator appears
   });
 
   function handleScroll() {
@@ -91,8 +93,8 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
     setError("");
     try {
       await sendMessage(props.friendId, text);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Send failed");
     }
   }
 
@@ -109,7 +111,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
       <div class="flex items-center gap-3 px-5 py-4 bg-white shadow-sm relative z-[2]">
         <button
           class="sm:hidden flex items-center justify-center w-11 h-11 rounded-[10px] text-gray-500 hover:bg-surface-2 transition-colors"
-          onClick={props.onBack}
+          onClick={() => props.onBack()}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10H5M5 10l5-5M5 10l5 5"/></svg>
         </button>
@@ -118,7 +120,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
           class="ml-auto flex items-center px-4 py-2 bg-green-500 hover:opacity-90 text-white rounded-full font-semibold text-sm font-[inherit] cursor-pointer min-h-[40px] transition-opacity"
           onClick={() => props.onStartCall?.(props.friendId)}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{"vertical-align":"-2px","margin-right":"6px"}}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
           Call
         </button>
       </div>
@@ -134,7 +136,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
       </Show>
 
       {/* Messages */}
-      <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-2 bg-chat-bg messages-scroll" ref={messagesContainer} onScroll={handleScroll}>
+      <div class="flex-1 overflow-y-auto px-5 pt-5 flex flex-col gap-2 bg-chat-bg messages-scroll" ref={messagesContainer} onScroll={handleScroll}>
         <Show when={loadingMore()}>
           <div class="text-center text-gray-400 text-sm py-2">Loading...</div>
         </Show>
@@ -156,13 +158,13 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
           )}
         </For>
         <Show when={state.typingUsers[props.friendId]}>
-          <div class="flex gap-1 items-center px-3 py-2.5 bg-chat-surface rounded-[14px] rounded-bl-[4px] w-fit mb-2 ml-1">
+          <div class="flex gap-1 items-center px-3 py-2.5 bg-chat-surface rounded-[14px] rounded-bl-[4px] w-fit ml-1">
             <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce-dot" />
             <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce-dot dot-delay-1" />
             <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce-dot dot-delay-2" />
           </div>
         </Show>
-        <div ref={messagesEnd} />
+        <div ref={messagesEnd} class="shrink-0 h-2" />
       </div>
 
       {/* Error */}

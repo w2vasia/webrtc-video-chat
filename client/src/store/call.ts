@@ -20,6 +20,7 @@ let pendingCandidates: RTCIceCandidateInit[] = [];
 export function useCall() {
   function setupCallListeners(): () => void {
     const unsubs: (() => void)[] = [];
+    // eslint-disable-next-line solid/reactivity -- WS event handler, not reactive context
     unsubs.push(wsClient.on("call-offer", async (data) => {
       const existing = activeCall();
       if (existing && data.iceRestart) {
@@ -38,6 +39,7 @@ export function useCall() {
       startRingtone();
     }));
 
+    // eslint-disable-next-line solid/reactivity -- WS event handler
     unsubs.push(wsClient.on("call-answer", async (data) => {
       const call = activeCall();
       if (call) {
@@ -46,6 +48,7 @@ export function useCall() {
       }
     }));
 
+    // eslint-disable-next-line solid/reactivity -- WS event handler
     unsubs.push(wsClient.on("ice-candidate", async (data) => {
       const call = activeCall();
       if (call) {
@@ -79,9 +82,9 @@ export function useCall() {
       setCallStatus("calling");
 
       await call.createOffer();
-    } catch (e: any) {
+    } catch (e) {
       console.error("Failed to start call", e);
-      setCallError(e?.message || "Failed to start call");
+      setCallError(e instanceof Error ? e.message : "Failed to start call");
       endCall();
     }
   }
@@ -115,9 +118,9 @@ export function useCall() {
       pendingCandidates = [];
 
       setCallStatus("connecting");
-    } catch (e: any) {
+    } catch (e) {
       console.error("Failed to accept call", e);
-      setCallError(e?.message || "Failed to accept call");
+      setCallError(e instanceof Error ? e.message : "Failed to accept call");
       endCall();
     }
   }

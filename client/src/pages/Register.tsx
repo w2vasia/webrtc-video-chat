@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { useNavigate, A } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
 
@@ -26,8 +26,8 @@ export default function Register() {
       });
       login(res.token, res.user);
       navigate("/");
-    } catch (err: any) {
-      setError(err.message || "Registration failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }

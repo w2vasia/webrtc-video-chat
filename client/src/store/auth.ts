@@ -1,6 +1,5 @@
 import { createSignal } from "solid-js";
 import { wsClient } from "../lib/ws";
-import { deleteKey } from "../lib/keystore";
 import { resetChat } from "./chat";
 
 interface User {
@@ -31,10 +30,6 @@ export function useAuth() {
     localStorage.removeItem("unreadCounts");
     setToken(null);
     setUser(null);
-    try {
-      await deleteKey("privateKey");
-      await deleteKey("publicKey");
-    } catch { /* ignore if IDB unavailable */ }
   }
 
   return { token, user, login, logout, isLoggedIn: () => !!token() };

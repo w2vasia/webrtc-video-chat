@@ -26,7 +26,7 @@ export function messageRoutes(db: Database) {
       FROM messages
       WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
     `;
-    const params: any[] = [userId, friendId, friendId, userId];
+    const params: (string | number)[] = [userId, friendId, friendId, userId];
 
     if (beforeId !== undefined) {
       const beforeIdNum = Number(beforeId);

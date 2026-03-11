@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { useNavigate, A } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import { useAuth } from "../store/auth";
 import { api } from "../lib/api";
 
@@ -25,8 +25,8 @@ export default function Login() {
       });
       login(res.token, res.user);
       navigate("/");
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }

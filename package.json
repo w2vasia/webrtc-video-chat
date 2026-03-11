@@ -1,19 +1,25 @@
 {
   "name": "webrtc-video-chat",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "bun run dev:server & bun run dev:client & wait",
     "dev:server": "cd server && bun run dev",
     "dev:client": "cd client && bun run dev",
     "build": "cd client && bun run build && cd ../server && bun run build",
     "test": "cd server && bun test && cd ../client && bun run test",
-    "seed": "bun run scripts/seed.ts"
+    "seed": "bun run scripts/seed.ts",
+    "lint": "bunx eslint ."
   },
   "workspaces": [
     "server",
     "client"
   ],
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
+    "eslint": "^10.0.3",
+    "eslint-plugin-solid": "^0.14.5",
     "jsdom": "^28.1.0"
   }
 }

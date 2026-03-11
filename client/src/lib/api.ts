@@ -1,4 +1,4 @@
-export async function api(path: string, opts: { method?: string; body?: any } = {}) {
+export async function api(path: string, opts: { method?: string; body?: Record<string, unknown> } = {}) {
   const token = localStorage.getItem("token");
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
