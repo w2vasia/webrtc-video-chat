@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 import { getDb, migrate } from "./db";
 import { authRoutes } from "./routes/auth";
 import { friendRoutes } from "./routes/friends";
@@ -31,6 +32,7 @@ app.use("*", cors({
   allowHeaders: ["Content-Type", "Authorization"],
 }));
 app.use("*", logger());
+app.use("*", secureHeaders());
 
 // Public routes (rate limited)
 app.use("/api/auth/*", rateLimit({
