@@ -170,6 +170,25 @@ describe("message — auth", () => {
     expect(presence.online).toBe(true);
   });
 
+  it("sends presence for already-online friends on authentication", async () => {
+    const userA = await createUser(db, "alice@test.com", "Alice");
+    const userB = await createUser(db, "bob@test.com", "Bob");
+    makeFriends(db, userA.id, userB.id);
+
+    // Alice connects first
+    const wsA = makeMockWs();
+    await authWs(handlers, wsA, userA.id, "alice@test.com");
+
+    // Bob connects second — should be told Alice is already online
+    const wsB = makeMockWs();
+    await authWs(handlers, wsB, userB.id, "bob@test.com");
+
+    const presence = wsB.sent.map((s) => JSON.parse(s)).find((m) => m.type === "presence");
+    expect(presence).not.toBeUndefined();
+    expect(presence.userId).toBe(userA.id);
+    expect(presence.online).toBe(true);
+  });
+
   it("replaces existing session — sends session-replaced and closes with code 4000", async () => {
     const user = await createUser(db, "alice@test.com", "Alice");
 
@@ -532,6 +551,21 @@ describe("message — call signaling", () => {
   });
 });
 
+// ─── ping/pong ────────────────────────────────────────────────────────────────
+
+describe("message — ping", () => {
+  it("responds with pong when authenticated client sends ping", async () => {
+    const user = await createUser(db, "alice@test.com", "Alice");
+    const ws = makeMockWs();
+    await authWs(handlers, ws, user.id, "alice@test.com");
+    ws.sent = [];
+
+    await handlers.message(ws as unknown as ServerWebSocket<WsData>, JSON.stringify({ type: "ping" }));
+
+    expect(lastMsg(ws).type).toBe("pong");
+  });
+});
+
 // ─── close ────────────────────────────────────────────────────────────────────
 
 describe("close", () => {
@@ -562,6 +596,48 @@ describe("close", () => {
     expect(presence).not.toBeUndefined();
     expect(presence.userId).toBe(userA.id);
     expect(presence.online).toBe(false);
+  });
+
+  it("updates last_seen on disconnect", async () => {
+    const user = await createUser(db, "alice@test.com", "Alice");
+    const ws = makeMockWs();
+    await authWs(handlers, ws, user.id, "alice@test.com");
+
+    // Reset last_seen after auth to prove close updates it independently
+    db.query("UPDATE users SET last_seen = 0 WHERE id = ?").run(user.id);
+    handlers.close(ws as unknown as ServerWebSocket<WsData>);
+
+    const row = db.query("SELECT last_seen FROM users WHERE id = ?").get(user.id) as { last_seen: number };
+    expect(row.last_seen).toBeGreaterThan(0);
+  });
+
+  it("does not remove user from onlineUsers when a stale WS closes after session was replaced", async () => {
+    const userA = await createUser(db, "alice@test.com", "Alice");
+    const userB = await createUser(db, "bob@test.com", "Bob");
+    makeFriends(db, userA.id, userB.id);
+
+    const wsA = makeMockWs();
+    await authWs(handlers, wsA, userA.id, "alice@test.com");
+
+    // B connects (first session)
+    const wsBold = makeMockWs();
+    await authWs(handlers, wsBold, userB.id, "bob@test.com");
+
+    // B reconnects (new session replaces old) — simulates async close race
+    const wsBnew = makeMockWs();
+    await authWs(handlers, wsBnew, userB.id, "bob@test.com");
+    wsA.sent = [];
+
+    // Old WS close fires AFTER new session is already established
+    handlers.close(wsBold as unknown as ServerWebSocket<WsData>);
+
+    // B should still be in onlineUsers (new session, not the stale one)
+    expect(getOnlineUsers().has(userB.id)).toBe(true);
+    expect(getOnlineUsers().get(userB.id)!.ws).toBe(wsBnew as unknown as ServerWebSocket<WsData>);
+
+    // A should NOT receive an offline presence event for B
+    const offlinePresence = wsA.sent.map((s) => JSON.parse(s)).find((m) => m.type === "presence" && m.online === false);
+    expect(offlinePresence).toBeUndefined();
   });
 
   it("does not throw when unauthenticated connection closes", () => {

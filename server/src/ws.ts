@@ -74,6 +74,7 @@ export function createWsHandlers(db: Database) {
               const friendWs = onlineUsers.get(f.friend_id);
               if (friendWs) {
                 friendWs.ws.send(JSON.stringify({ type: "presence", userId: payload.sub, online: true }));
+                ws.send(JSON.stringify({ type: "presence", userId: f.friend_id, online: true }));
               }
             }
           } catch {
@@ -165,6 +166,11 @@ export function createWsHandlers(db: Database) {
           break;
         }
 
+        case "ping": {
+          ws.send(JSON.stringify({ type: "pong" }));
+          break;
+        }
+
         case "typing": {
           if (typeof data.to !== "number" || !isFriend(data.to)) break;
           const target = onlineUsers.get(data.to);
@@ -195,7 +201,10 @@ export function createWsHandlers(db: Database) {
     close(ws: ServerWebSocket<WsData>) {
       if (ws.data.userId) {
         const userId = ws.data.userId;
+        // Guard: if a new session already replaced this WS, don't evict it
+        if (onlineUsers.get(userId)?.ws !== ws) return;
         onlineUsers.delete(userId);
+        db.query("UPDATE users SET last_seen = unixepoch() WHERE id = ?").run(userId);
 
         // Broadcast offline to friends
         const friends = db.query(

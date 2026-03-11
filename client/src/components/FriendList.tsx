@@ -1,6 +1,7 @@
 import { createResource, createEffect, onCleanup, onMount, For, Show } from "solid-js";
 import { api } from "../lib/api";
 import { useChat } from "../store/chat";
+import { formatLastSeen } from "../lib/utils";
 
 interface Friend {
   id: number;
@@ -51,6 +52,9 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
             <div class="flex flex-col min-w-0">
               <span class="font-semibold text-[0.9375rem] text-gray-900">{friend.displayName}</span>
               <span class="text-[0.8125rem] text-gray-400 truncate">{friend.email}</span>
+              <span class={`text-[0.75rem] truncate ${props.onlineUsers.has(friend.id) ? "text-green-500" : "text-gray-400"}`}>
+                {props.onlineUsers.has(friend.id) ? "Online" : formatLastSeen(friend.lastSeen)}
+              </span>
             </div>
             <Show when={state.unreadCounts[friend.id]}>
               <span class="ml-auto flex-shrink-0 min-w-[22px] h-[22px] px-1.5 bg-primary text-white rounded-full text-xs font-semibold flex items-center justify-center">

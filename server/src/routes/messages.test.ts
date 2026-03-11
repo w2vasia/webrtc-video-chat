@@ -8,7 +8,7 @@ import { getDb, migrate } from "../db";
 let db: ReturnType<typeof getDb>;
 let app: Hono;
 let tokenA: string;
-let tokenB: string;
+let _tokenB: string;
 let userAId: number;
 let userBId: number;
 
@@ -41,7 +41,7 @@ beforeEach(async () => {
   userAId = userA.id;
   userBId = userB.id;
   tokenA = await createToken(userA.id, "alice@test.com");
-  tokenB = await createToken(userB.id, "bob@test.com");
+  _tokenB = await createToken(userB.id, "bob@test.com");
 });
 
 describe("GET /api/messages/:friendId", () => {

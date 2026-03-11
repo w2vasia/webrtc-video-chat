@@ -2,7 +2,7 @@ import { onMount, onCleanup, Show, createSignal, createEffect } from "solid-js";
 import { useAuth } from "../store/auth";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
-import { wsClient, wsConnected } from "../lib/ws";
+import { wsClient, wsConnected, wsEverConnected } from "../lib/ws";
 import FriendList from "../components/FriendList";
 import AddFriend from "../components/AddFriend";
 import PendingRequests from "../components/PendingRequests";
@@ -35,10 +35,10 @@ export default function Chat() {
   };
 
   onMount(async () => {
-    wsClient.connect(token()!);
-    await initKeys();
     cleanupChat = setupListeners();
     cleanupCall = setupCallListeners();
+    await initKeys();
+    wsClient.connect(token()!);
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
@@ -72,7 +72,7 @@ export default function Chat() {
               <h2 class="text-primary text-xl font-semibold">Whisper</h2>
               <span class="flex items-center gap-1.5">
                 <span class={`w-2.5 h-2.5 rounded-full transition-colors ${wsConnected() ? "bg-green-500" : "bg-red-500 animate-pulse-dot"}`} />
-                {!wsConnected() && <span class="text-xs text-red-500 font-medium">Reconnecting…</span>}
+                {!wsConnected() && wsEverConnected() && <span class="text-xs text-red-500 font-medium">Reconnecting…</span>}
               </span>
             </div>
             <button

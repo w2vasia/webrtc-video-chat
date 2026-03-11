@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, batch } from "solid-js";
 import { wsClient } from "../lib/ws";
 import { resetChat } from "./chat";
 
@@ -18,8 +18,7 @@ export function useAuth() {
   function login(t: string, u: User) {
     localStorage.setItem("token", t);
     localStorage.setItem("user", JSON.stringify(u));
-    setToken(t);
-    setUser(u);
+    batch(() => { setToken(t); setUser(u); });
   }
 
   async function logout() {

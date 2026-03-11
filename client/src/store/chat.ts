@@ -227,6 +227,7 @@ export function useChat() {
       }
     }));
 
+    // eslint-disable-next-line solid/reactivity -- WS event handler
     unsubs.push(wsClient.on("chat-ack", (data) => {
       wsClient.ackMessage(data.clientId);
       const fid = pendingMsgMap.get(data.clientId);

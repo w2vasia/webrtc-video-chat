@@ -57,7 +57,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
     if (scrollHeight - scrollTop - clientHeight < 150) {
       messagesEnd?.scrollIntoView({ behavior: "smooth" });
     }
-    isTyping; // track typing state to trigger scroll when indicator appears
+    void isTyping; // track typing state to trigger scroll when indicator appears
   });
 
   function handleScroll() {
