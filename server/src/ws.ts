@@ -17,8 +17,26 @@ export interface WsData {
 const onlineUsers = new Map<number, WsUser>();
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+interface WsRateEntry { count: number; resetAt: number }
+const wsRateLimit = new Map<number, WsRateEntry>();
+
+function checkWsRate(userId: number): boolean {
+  const now = Date.now();
+  const entry = wsRateLimit.get(userId);
+  if (!entry || now >= entry.resetAt) {
+    wsRateLimit.set(userId, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= 60;
+}
+
 export function getOnlineUsers() {
   return onlineUsers;
+}
+
+export function getWsRateLimit() {
+  return wsRateLimit;
 }
 
 export function createWsHandlers(db: Database) {
@@ -96,9 +114,12 @@ export function createWsHandlers(db: Database) {
 
       // Max payload size for ciphertext/nonce (64KB)
       const MAX_PAYLOAD = 65536;
+      const MAX_SDP = 8192;
+      const MAX_ICE = 2048;
 
       switch (data.type) {
         case "chat": {
+          if (!checkWsRate(userId)) break;
           if (typeof data.to !== "number" || !Number.isInteger(data.to)) break;
           if (typeof data.ciphertext !== "string" || data.ciphertext.length > MAX_PAYLOAD) break;
           if (typeof data.nonce !== "string" || data.nonce.length < 12 || data.nonce.length > 64) break;
@@ -125,6 +146,7 @@ export function createWsHandlers(db: Database) {
 
         case "call-offer": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (typeof data.offer?.sdp !== "string" || data.offer.sdp.length > MAX_SDP) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, offer: data.offer }));
@@ -133,6 +155,7 @@ export function createWsHandlers(db: Database) {
         }
         case "call-answer": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (typeof data.answer?.sdp !== "string" || data.answer.sdp.length > MAX_SDP) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "call-answer", senderId: userId, answer: data.answer }));
@@ -141,6 +164,7 @@ export function createWsHandlers(db: Database) {
         }
         case "ice-candidate": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (typeof data.candidate?.candidate !== "string" || data.candidate.candidate.length > MAX_ICE) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "ice-candidate", senderId: userId, candidate: data.candidate }));
@@ -157,8 +181,15 @@ export function createWsHandlers(db: Database) {
         }
 
         case "read": {
-          db.query("UPDATE messages SET read_at = unixepoch() WHERE id = ? AND recipient_id = ?")
-            .run(data.messageId, userId);
+          if (data.senderId === userId) break;
+          if (typeof data.messageId !== "number" || !Number.isInteger(data.messageId)) break;
+          if (typeof data.senderId !== "number" || !Number.isInteger(data.senderId)) break;
+          if (!isFriend(data.senderId)) break;
+          const msgRow = db.query(
+            "SELECT id FROM messages WHERE id = ? AND sender_id = ? AND recipient_id = ?"
+          ).get(data.messageId, data.senderId, userId);
+          if (!msgRow) break;
+          db.query("UPDATE messages SET read_at = unixepoch() WHERE id = ?").run(data.messageId);
           const sender = onlineUsers.get(data.senderId);
           if (sender) {
             sender.ws.send(JSON.stringify({ type: "read", messageId: data.messageId }));

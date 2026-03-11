@@ -35,7 +35,6 @@ class WsClient {
     this.ws = new WebSocket(`${proto}//${location.host}/ws`);
 
     this.ws.onopen = () => {
-      console.log("[ws] connected, authenticating...");
       this.retryDelay = 1000;
       this.ws!.send(JSON.stringify({ type: "auth", token }));
       setWsConnected(true);
@@ -44,7 +43,6 @@ class WsClient {
 
     this.ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      console.log("[ws] received:", data.type, data);
       if (data.type === "authenticated") {
         this.replayPending();
         if (this.pingInterval) clearInterval(this.pingInterval);
@@ -57,7 +55,6 @@ class WsClient {
     };
 
     this.ws.onclose = (e) => {
-      console.log("[ws] closed:", e.code, e.reason);
       setWsConnected(false);
       this.replayed = false;
       if (this.pingInterval) { clearInterval(this.pingInterval); this.pingInterval = null; }
@@ -70,8 +67,8 @@ class WsClient {
       }, delay);
     };
 
-    this.ws.onerror = (e) => {
-      console.error("[ws] error:", e);
+    this.ws.onerror = () => {
+      // Error is also reported via onclose, no need to log
     };
   }
 

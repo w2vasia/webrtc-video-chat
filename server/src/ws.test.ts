@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import type { ServerWebSocket } from "bun";
-import { createWsHandlers, getOnlineUsers } from "./ws";
+import { createWsHandlers, getOnlineUsers, getWsRateLimit } from "./ws";
 import type { WsData } from "./ws";
 import { createToken } from "./auth";
 import { getDb, migrate } from "./db";
@@ -65,6 +65,7 @@ beforeEach(() => {
   migrate(db);
   handlers = createWsHandlers(db);
   getOnlineUsers().clear();
+  getWsRateLimit().clear();
 });
 
 // ─── open ─────────────────────────────────────────────────────────────────────
@@ -366,6 +367,23 @@ describe("message — chat", () => {
     );
     expect(wsA.sent).toHaveLength(0);
   });
+
+  it("drops messages exceeding 60 per minute per user", async () => {
+    // Send exactly 60 messages — all should be ACK'd
+    for (let i = 0; i < 60; i++) {
+      await handlers.message(
+        wsA as unknown as ServerWebSocket<WsData>,
+        JSON.stringify({ type: "chat", to: userBId, ciphertext: "x==", nonce: "nonce1234567890a", clientId: `id-${i}` }),
+      );
+    }
+    const sentAfter60 = wsA.sent.length;
+    // 61st message: should be silently dropped — no new ACK
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "chat", to: userBId, ciphertext: "x==", nonce: "nonce1234567890a", clientId: "id-61" }),
+    );
+    expect(wsA.sent.length).toBe(sentAfter60);
+  });
 });
 
 // ─── typing ───────────────────────────────────────────────────────────────────
@@ -467,6 +485,67 @@ describe("message — read", () => {
     expect(notification.type).toBe("read");
     expect(notification.messageId).toBe(msg.id);
   });
+
+  it("does not notify arbitrary user when senderId does not own the message", async () => {
+    const userA = await createUser(db, "alice@test.com", "Alice");
+    const userB = await createUser(db, "bob@test.com", "Bob");
+    const userC = await createUser(db, "charlie@test.com", "Charlie");
+    makeFriends(db, userA.id, userB.id);
+    makeFriends(db, userA.id, userC.id);
+
+    // Message from A to B
+    const msg = db
+      .query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, 1) RETURNING id")
+      .get(userA.id, userB.id, "cipher==", "nonce1234567890a") as { id: number };
+
+    const wsA = makeMockWs();
+    const wsC = makeMockWs();
+    const wsB = makeMockWs();
+    await authWs(handlers, wsA, userA.id, "alice@test.com");
+    await authWs(handlers, wsC, userC.id, "charlie@test.com");
+    await authWs(handlers, wsB, userB.id, "bob@test.com");
+    wsA.sent = [];
+    wsC.sent = [];
+
+    // B sends read but lies and claims C sent the message
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "read", messageId: msg.id, senderId: userC.id }),
+    );
+
+    // C must NOT receive a spurious read notification
+    expect(wsC.sent).toHaveLength(0);
+    // A (the real sender) must NOT receive it either (wrong senderId)
+    expect(wsA.sent).toHaveLength(0);
+    // read_at must remain NULL in DB
+    const row = db.query("SELECT read_at FROM messages WHERE id = ?").get(msg.id) as { read_at: number | null };
+    expect(row.read_at).toBeNull();
+  });
+
+  it("drops read message with non-integer messageId", async () => {
+    const userA = await createUser(db, "alice@test.com", "Alice");
+    const userB = await createUser(db, "bob@test.com", "Bob");
+    makeFriends(db, userA.id, userB.id);
+
+    const msg = db
+      .query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, 1) RETURNING id")
+      .get(userA.id, userB.id, "cipher==", "nonce1234567890a") as { id: number };
+
+    const wsA = makeMockWs();
+    const wsB = makeMockWs();
+    await authWs(handlers, wsA, userA.id, "alice@test.com");
+    await authWs(handlers, wsB, userB.id, "bob@test.com");
+    wsA.sent = [];
+
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "read", messageId: "not-a-number", senderId: userA.id }),
+    );
+
+    expect(wsA.sent).toHaveLength(0);
+    const row = db.query("SELECT read_at FROM messages WHERE id = ?").get(msg.id) as { read_at: number | null };
+    expect(row.read_at).toBeNull();
+  });
 });
 
 // ─── call signaling ───────────────────────────────────────────────────────────
@@ -547,6 +626,30 @@ describe("message — call signaling", () => {
       JSON.stringify({ type: "call-offer", targetId: userAId, offer: {} }),
     );
 
+    expect(wsA.sent).toHaveLength(0);
+  });
+
+  it("drops call-offer with oversized SDP", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-offer", targetId: userBId, offer: { sdp: "x".repeat(8193), type: "offer" } }),
+    );
+    expect(wsB.sent).toHaveLength(0);
+  });
+
+  it("drops ice-candidate with oversized candidate string", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "ice-candidate", targetId: userBId, candidate: { candidate: "c".repeat(2049) } }),
+    );
+    expect(wsB.sent).toHaveLength(0);
+  });
+
+  it("drops call-answer with oversized SDP", async () => {
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-answer", targetId: userAId, answer: { sdp: "x".repeat(8193), type: "answer" } }),
+    );
     expect(wsA.sent).toHaveLength(0);
   });
 });

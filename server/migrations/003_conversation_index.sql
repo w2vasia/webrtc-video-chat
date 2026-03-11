@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_id, recipient_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_rev ON messages(recipient_id, sender_id, id DESC)

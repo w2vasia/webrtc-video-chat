@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 import { authRoutes } from "./auth";
 import { getDb, migrate } from "../db";
 
@@ -7,6 +8,7 @@ function setup() {
   const db = getDb(":memory:");
   migrate(db);
   const app = new Hono();
+  app.use("*", secureHeaders());
   app.route("/api/auth", authRoutes(db));
   return { app, db };
 }
@@ -58,6 +60,20 @@ describe("POST /api/auth/register", () => {
         email: "test@example.com",
         password: "short",
         displayName: "Test",
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects whitespace-only display name", async () => {
+    const { app } = setup();
+    const res = await app.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "test@example.com",
+        password: "securepass123",
+        displayName: "   ",
       }),
     });
     expect(res.status).toBe(400);
@@ -138,5 +154,27 @@ describe("POST /api/auth/login", () => {
     const b2 = await res2.json();
     expect(b1.error).toBe("Invalid credentials");
     expect(b2.error).toBe("Invalid credentials");
+  });
+});
+
+describe("Security headers", () => {
+  it("sets X-Content-Type-Options: nosniff on responses", async () => {
+    const { app } = setup();
+    const res = await app.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "a@b.com", password: "password123", displayName: "A" }),
+    });
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  it("sets X-Frame-Options: SAMEORIGIN on responses", async () => {
+    const { app } = setup();
+    const res = await app.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "a@b.com", password: "password123", displayName: "A" }),
+    });
+    expect(res.headers.get("x-frame-options")).toBe("SAMEORIGIN");
   });
 });

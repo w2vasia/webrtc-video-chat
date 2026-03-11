@@ -71,6 +71,12 @@ export function messageRoutes(db: Database) {
       return c.json({ error: "Invalid friend ID" }, 400);
     }
 
+    // Verify friendship
+    const friendship = db.query(
+      "SELECT 1 FROM friendships WHERE ((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = 'accepted'"
+    ).get(userId, friendId, friendId, userId);
+    if (!friendship) return c.json({ error: "Not friends" }, 403);
+
     db.query(
       "DELETE FROM messages WHERE (sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?)"
     ).run(userId, friendId, friendId, userId);
