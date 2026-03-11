@@ -1,5 +1,6 @@
 import { createSignal, createEffect, onCleanup, Show } from "solid-js";
 import { useCall } from "../store/call";
+import { useChat } from "../store/chat";
 
 function bindStream(el: HTMLVideoElement, stream: MediaStream | null) {
   if (!stream) return;
@@ -10,8 +11,9 @@ function bindStream(el: HTMLVideoElement, stream: MediaStream | null) {
 export default function CallView() {
   const {
     localStream, remoteStream, activeCall, endCall, callStatus,
-    callType, remoteVideoPrompt, enableCamera, expandToVideo,
+    callType, remoteVideoPrompt, enableCamera, expandToVideo, callTargetId,
   } = useCall();
+  const { state: chatState } = useChat();
   const [videoOn, setVideoOn] = createSignal(true);
   const [audioOn, setAudioOn] = createSignal(true);
   let remoteVideoEl: HTMLVideoElement | undefined;
@@ -42,13 +44,17 @@ export default function CallView() {
   }
 
   const isVideoView = () => callType() === "video";
+  const friendName = () => {
+    const id = callTargetId();
+    return id ? chatState.friendInfo[id]?.name ?? "Friend" : "Friend";
+  };
 
   return (
     <Show when={isVideoView()} fallback={
       /* Voice call — centered card */
       <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
         <div class="bg-gray-900 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl w-80">
-          <h3 class="text-white text-lg font-semibold m-0">Voice Call</h3>
+          <h3 class="text-white text-lg font-semibold m-0">{friendName()}</h3>
 
           <div class="text-white/70 text-sm">
             <Show when={callStatus() === "connected"} fallback={statusText[callStatus()] ?? "..."}>

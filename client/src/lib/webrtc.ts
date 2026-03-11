@@ -52,6 +52,15 @@ export class WebRTCCall {
       }
     };
 
+    this.pc.onnegotiationneeded = async () => {
+      if (this.ended || !this.remoteDescSet) return;
+      try {
+        const offer = await this.pc.createOffer();
+        await this.pc.setLocalDescription(offer);
+        wsClient.send({ type: "call-offer", targetId: this.targetId, offer, callType: this.callType, renegotiate: true });
+      } catch {}
+    };
+
     this.pc.onconnectionstatechange = () => {
       const state = this.pc.connectionState;
       if (state === "connected") {
@@ -92,7 +101,7 @@ export class WebRTCCall {
     try {
       const offer = await this.pc.createOffer({ iceRestart: true });
       await this.pc.setLocalDescription(offer);
-      wsClient.send({ type: "call-offer", targetId: this.targetId, offer, iceRestart: true });
+      wsClient.send({ type: "call-offer", targetId: this.targetId, offer, callType: this.callType, iceRestart: true });
       this.giveUpTimer = setTimeout(() => {
         this.onFailed?.();
         this.end();

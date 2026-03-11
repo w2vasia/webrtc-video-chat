@@ -26,7 +26,7 @@ export function useCall() {
     // eslint-disable-next-line solid/reactivity -- WS event handler, not reactive context
     unsubs.push(wsClient.on("call-offer", async (data) => {
       const existing = activeCall();
-      if (existing && data.iceRestart) {
+      if (existing && (data.iceRestart || data.renegotiate)) {
         await existing.handleOffer(data.offer);
         return;
       }
@@ -40,6 +40,7 @@ export function useCall() {
       pendingOffer = data.offer;
       pendingSenderId = data.senderId;
       pendingCallType = data.callType || "video";
+      setCallType(pendingCallType);
       startRingtone();
     }));
 
@@ -110,18 +111,19 @@ export function useCall() {
 
     const senderId = pendingSenderId;
     const offer = pendingOffer;
+    const type = pendingCallType;
     pendingOffer = null;
     pendingSenderId = null;
 
     try {
-      const call = await WebRTCCall.create(senderId, pendingCallType);
+      const call = await WebRTCCall.create(senderId, type);
       call.onRemoteStream = (s) => setRemoteStream(s);
       call.onConnected = () => setCallStatus("connected");
       call.onEnded = () => endCall();
       call.onReconnecting = () => setCallStatus("connecting");
       call.onFailed = () => showToast("Call lost", "error");
 
-      const stream = await call.startLocalMedia(pendingCallType === "video");
+      const stream = await call.startLocalMedia(type === "video");
       setLocalStream(stream);
       setActiveCall(call);
 
@@ -177,7 +179,7 @@ export function useCall() {
 
   async function enableCamera() {
     const call = activeCall();
-    if (!call) return;
+    if (!call || callType() === "video") return;
     try {
       const stream = await call.addVideoTrack();
       setLocalStream(new MediaStream(stream.getTracks()));
