@@ -103,7 +103,7 @@ export default function Chat() {
           <ChatWindow
             friendId={state.activeFriend!}
             onBack={() => { setActiveFriend(null); setSidebarOpen(true); }}
-            onStartCall={(id) => startCall(id)}
+            onStartCall={startCall}
           />
         </Show>
       </main>

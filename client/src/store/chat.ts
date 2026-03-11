@@ -20,7 +20,7 @@ interface ChatState {
   conversations: Record<number, ChatMessage[]>;
   activeFriend: number | null;
   sharedKeys: Record<number, CryptoKey>;
-  onlineUsers: Set<number>;
+  onlineUsers: Record<number, boolean>;
   unreadCounts: Record<number, number>;
   friendInfo: Record<number, { name: string; email: string }>;
   hasMore: Record<number, boolean>;
@@ -38,7 +38,7 @@ const [state, setState] = createStore<ChatState>({
   conversations: {},
   activeFriend: null,
   sharedKeys: {},
-  onlineUsers: new Set(),
+  onlineUsers: {},
   unreadCounts: loadUnreadCounts(),
   friendInfo: {},
   hasMore: {},
@@ -54,8 +54,9 @@ let _resetFn: (() => void) | null = null;
 export function resetChat() { _resetFn?.(); }
 
 export function useChat() {
+  const { user } = useAuth();
+
   async function initKeys() {
-    const { user } = useAuth();
     const userId = user()?.id;
     if (!userId) throw new Error("Not logged in");
 
@@ -115,7 +116,6 @@ export function useChat() {
 
     loadingSet.add(key);
     try {
-      const { user } = useAuth();
       const myId = user()?.id;
       const sharedKey = await getSharedKey(friendId);
       const url = beforeId
@@ -173,11 +173,7 @@ export function useChat() {
     const unsubs: (() => void)[] = [];
 
     unsubs.push(wsClient.on("presence", (data) => {
-      setState("onlineUsers", (prev) => {
-        const next = new Set(prev);
-        if (data.online) next.add(data.userId); else next.delete(data.userId);
-        return next;
-      });
+      setState("onlineUsers", data.userId, !!data.online);
     }));
 
     unsubs.push(wsClient.on("typing", (data) => {
@@ -274,10 +270,11 @@ export function useChat() {
       conversations: {},
       activeFriend: null,
       sharedKeys: {},
-      onlineUsers: new Set(),
+      onlineUsers: {},
       unreadCounts: {},
       friendInfo: {},
       hasMore: {},
+      typingUsers: {},
     });
     localStorage.removeItem("unreadCounts");
   }

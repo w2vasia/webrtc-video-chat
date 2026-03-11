@@ -1,4 +1,4 @@
-import { createSignal, For, createEffect, Show, onCleanup } from "solid-js";
+import { createSignal, For, createEffect, Show, onCleanup, untrack } from "solid-js";
 import { useChat } from "../store/chat";
 import { useCall } from "../store/call";
 import { wsClient } from "../lib/ws";
@@ -30,13 +30,16 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
   createEffect(() => {
     const msgs = state.conversations[props.friendId] ?? [];
     const unread = msgs.filter(m => m.from !== 0 && !m.readAt && m.serverId);
-    for (const m of unread) {
-      const serverId = m.serverId!;
-      wsClient.send({ type: "read", messageId: Number(serverId), senderId: props.friendId });
-      setState("conversations", props.friendId, (prev) =>
-        prev.map(msg => msg.id === m.id ? { ...msg, readAt: Date.now() } : msg)
-      );
-    }
+    if (!unread.length) return;
+    // Use untrack for the setState so marking-read doesn't re-trigger this effect
+    untrack(() => {
+      for (const m of unread) {
+        wsClient.send({ type: "read", messageId: Number(m.serverId!), senderId: props.friendId });
+        setState("conversations", props.friendId, (prev) =>
+          prev.map(msg => msg.id === m.id ? { ...msg, readAt: Date.now() } : msg)
+        );
+      }
+    });
   });
 
   createEffect(() => {
