@@ -73,15 +73,19 @@ export function friendRoutes(db: Database) {
   // List accepted friends
   app.get("/", async (c) => {
     const userId = c.get("userId") as number;
+    const limit = Math.min(Number(c.req.query("limit")) || 100, 200);
+    const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
 
     const friends = db
       .query(
         `SELECT u.id, u.email, u.display_name, u.last_seen, f.id as friendship_id
          FROM friendships f
          JOIN users u ON u.id = CASE WHEN f.requester_id = ? THEN f.addressee_id ELSE f.requester_id END
-         WHERE (f.requester_id = ? OR f.addressee_id = ?) AND f.status = 'accepted'`,
+         WHERE (f.requester_id = ? OR f.addressee_id = ?) AND f.status = 'accepted'
+         ORDER BY u.display_name
+         LIMIT ? OFFSET ?`,
       )
-      .all(userId, userId, userId) as Array<{
+      .all(userId, userId, userId, limit, offset) as Array<{
       id: number;
       email: string;
       display_name: string;

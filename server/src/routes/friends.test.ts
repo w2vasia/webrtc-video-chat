@@ -296,3 +296,42 @@ describe("GET /api/friends/search — edge cases", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("GET /api/friends — pagination", () => {
+  it("respects limit param", async () => {
+    // Get userA id from DB
+    const userA = db.query("SELECT id FROM users WHERE email='alice@test.com'").get() as { id: number };
+    // Create 4 extra friends for A
+    for (let i = 0; i < 4; i++) {
+      const hash = await Bun.password.hash("password123", { algorithm: "argon2id" });
+      const u = db
+        .query("INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?) RETURNING id")
+        .get(`extra${i}@test.com`, hash, `Extra${i}`) as { id: number };
+      db.query("INSERT INTO friendships (requester_id, addressee_id, status) VALUES (?, ?, 'accepted')").run(userA.id, u.id);
+    }
+    const res = await app.request("/api/friends?limit=2", {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.friends).toHaveLength(2);
+  });
+
+  it("returns different pages with offset", async () => {
+    const userA = db.query("SELECT id FROM users WHERE email='alice@test.com'").get() as { id: number };
+    for (let i = 0; i < 4; i++) {
+      const hash = await Bun.password.hash("password123", { algorithm: "argon2id" });
+      const u = db
+        .query("INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?) RETURNING id")
+        .get(`pager${i}@test.com`, hash, `Pager${i}`) as { id: number };
+      db.query("INSERT INTO friendships (requester_id, addressee_id, status) VALUES (?, ?, 'accepted')").run(userA.id, u.id);
+    }
+    const res1 = await app.request("/api/friends?limit=2&offset=0", { headers: { Authorization: `Bearer ${tokenA}` } });
+    const res2 = await app.request("/api/friends?limit=2&offset=2", { headers: { Authorization: `Bearer ${tokenA}` } });
+    const body1 = await res1.json();
+    const body2 = await res2.json();
+    const ids1 = new Set(body1.friends.map((f: { id: number }) => f.id));
+    const ids2 = body2.friends.map((f: { id: number }) => f.id);
+    expect(ids2.some((id: number) => ids1.has(id))).toBe(false);
+  });
+});
