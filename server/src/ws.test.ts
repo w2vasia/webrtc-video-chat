@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import type { ServerWebSocket } from "bun";
-import { createWsHandlers, getOnlineUsers, getWsRateLimit } from "./ws";
+import { createWsHandlers, getOnlineUsers, getWsRateLimit, getPendingOffers, getActiveCalls } from "./ws";
 import type { WsData } from "./ws";
 import { createToken } from "./auth";
 import { getDb, migrate } from "./db";
@@ -66,6 +66,8 @@ beforeEach(() => {
   handlers = createWsHandlers(db);
   getOnlineUsers().clear();
   getWsRateLimit().clear();
+  getPendingOffers().clear();
+  getActiveCalls().clear();
 });
 
 // ─── open ─────────────────────────────────────────────────────────────────────
@@ -747,5 +749,118 @@ describe("close", () => {
     const ws = makeMockWs();
     handlers.open(ws as unknown as ServerWebSocket<WsData>);
     expect(() => handlers.close(ws as unknown as ServerWebSocket<WsData>)).not.toThrow();
+  });
+});
+
+// ─── system events (call) ────────────────────────────────────────────────────
+
+describe("system events — call", () => {
+  let userAId: number;
+  let userBId: number;
+  let wsA: MockWs;
+  let wsB: MockWs;
+
+  beforeEach(async () => {
+    const userA = await createUser(db, "alice@test.com", "Alice");
+    const userB = await createUser(db, "bob@test.com", "Bob");
+    userAId = userA.id;
+    userBId = userB.id;
+    makeFriends(db, userAId, userBId);
+
+    wsA = makeMockWs();
+    wsB = makeMockWs();
+    await authWs(handlers, wsA, userAId, "alice@test.com");
+    await authWs(handlers, wsB, userBId, "bob@test.com");
+    wsA.sent = [];
+    wsB.sent = [];
+  });
+
+  it("inserts missed_call when call-end before call-answer", async () => {
+    // A offers to B
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-offer", targetId: userBId, offer: { sdp: "v=0...", type: "offer" } }),
+    );
+    wsA.sent = [];
+    wsB.sent = [];
+
+    // A cancels
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-end", targetId: userBId }),
+    );
+
+    // Both should receive system-event
+    const evtA = wsA.sent.map((s) => JSON.parse(s)).find((m) => m.type === "system-event");
+    const evtB = wsB.sent.map((s) => JSON.parse(s)).find((m) => m.type === "system-event");
+    expect(evtA).not.toBeUndefined();
+    expect(evtA.event.event_type).toBe("missed_call");
+    expect(evtB).not.toBeUndefined();
+    expect(evtB.event.event_type).toBe("missed_call");
+
+    // Check DB
+    const row = db.query("SELECT * FROM system_events WHERE event_type = 'missed_call'").get() as { user1_id: number; user2_id: number } | null;
+    expect(row).not.toBeNull();
+    expect(row!.user1_id).toBe(userBId); // callee
+    expect(row!.user2_id).toBe(userAId); // caller
+  });
+
+  it("inserts call_ended with duration when call-end after call-answer", async () => {
+    // A offers to B
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-offer", targetId: userBId, offer: { sdp: "v=0...", type: "offer" } }),
+    );
+    // B answers
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-answer", targetId: userAId, answer: { sdp: "v=0...", type: "answer" } }),
+    );
+    wsA.sent = [];
+    wsB.sent = [];
+
+    // A ends call
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-end", targetId: userBId }),
+    );
+
+    const evtA = wsA.sent.map((s) => JSON.parse(s)).find((m) => m.type === "system-event");
+    expect(evtA).not.toBeUndefined();
+    expect(evtA.event.event_type).toBe("call_ended");
+    const meta = JSON.parse(evtA.event.metadata);
+    expect(typeof meta.duration).toBe("number");
+    expect(meta.duration).toBeGreaterThanOrEqual(0);
+  });
+
+  it("does not insert system event for call-end without prior offer", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-end", targetId: userBId }),
+    );
+
+    // Only call-end relayed, no system-event
+    const evtA = wsA.sent.map((s) => JSON.parse(s)).find((m) => m.type === "system-event");
+    expect(evtA).toBeUndefined();
+
+    const row = db.query("SELECT COUNT(*) as n FROM system_events").get() as { n: number };
+    expect(row.n).toBe(0);
+  });
+
+  it("delivers queued system events on auth", async () => {
+    // Insert an undelivered missed_call event for Bob
+    db.query("INSERT INTO system_events (user1_id, user2_id, event_type, delivered) VALUES (?, ?, 'missed_call', 0)").run(userBId, userAId);
+
+    // Bob reconnects
+    const wsB2 = makeMockWs();
+    await authWs(handlers, wsB2, userBId, "bob@test.com");
+
+    const evt = wsB2.sent.map((s) => JSON.parse(s)).find((m) => m.type === "system-event");
+    expect(evt).not.toBeUndefined();
+    expect(evt.event.event_type).toBe("missed_call");
+
+    // Should be marked delivered
+    const row = db.query("SELECT delivered FROM system_events WHERE user1_id = ? AND user2_id = ?").get(userBId, userAId) as { delivered: number };
+    expect(row.delivered).toBe(1);
   });
 });
