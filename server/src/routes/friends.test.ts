@@ -137,4 +137,162 @@ describe("POST /api/friends/reject", () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it("addressee can reject a pending request", async () => {
+    await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "bob@test.com" }),
+    });
+
+    const res = await app.request("/api/friends/reject", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ friendshipId: 1 }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+  });
+
+  it("requester can cancel their own pending request", async () => {
+    await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "bob@test.com" }),
+    });
+
+    const res = await app.request("/api/friends/reject", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ friendshipId: 1 }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("can remove an already accepted friendship", async () => {
+    await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "bob@test.com" }),
+    });
+    await app.request("/api/friends/accept", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ friendshipId: 1 }),
+    });
+
+    const res = await app.request("/api/friends/reject", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ friendshipId: 1 }),
+    });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("POST /api/friends/request — edge cases", () => {
+  it("returns 400 when trying to befriend yourself", async () => {
+    const res = await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "alice@test.com" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 404 when target email does not exist", async () => {
+    const res = await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "nobody@test.com" }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("prevents reverse duplicate (B→A when A→B exists)", async () => {
+    await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "bob@test.com" }),
+    });
+
+    const res = await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "alice@test.com" }),
+    });
+    expect(res.status).toBe(409);
+  });
+});
+
+describe("POST /api/friends/accept — edge cases", () => {
+  it("returns 404 when requester tries to accept their own outgoing request", async () => {
+    await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "bob@test.com" }),
+    });
+
+    const res = await app.request("/api/friends/accept", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ friendshipId: 1 }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for nonexistent friendshipId", async () => {
+    const res = await app.request("/api/friends/accept", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenB}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ friendshipId: 99999 }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /api/friends — edge cases", () => {
+  it("returns empty list when user has no friends", async () => {
+    const res = await app.request("/api/friends", {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.friends).toEqual([]);
+  });
+});
+
+describe("GET /api/friends/pending — edge cases", () => {
+  it("returns empty list when no pending requests", async () => {
+    const res = await app.request("/api/friends/pending", {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.requests).toEqual([]);
+  });
+
+  it("does not show outgoing requests to requester", async () => {
+    await app.request("/api/friends/request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenA}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "bob@test.com" }),
+    });
+
+    const res = await app.request("/api/friends/pending", {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    const body = await res.json();
+    expect(body.requests).toEqual([]);
+  });
+});
+
+describe("GET /api/friends/search — edge cases", () => {
+  it("returns 400 when email query param is missing", async () => {
+    const res = await app.request("/api/friends/search", {
+      headers: { Authorization: `Bearer ${tokenA}` },
+    });
+    expect(res.status).toBe(400);
+  });
 });
