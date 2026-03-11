@@ -1,7 +1,11 @@
+import { onCleanup } from "solid-js";
 import { useCall } from "../store/call";
 
 export default function IncomingCall() {
   const { acceptCall, rejectCall } = useCall();
+
+  const timeout = setTimeout(() => rejectCall(), 30_000);
+  onCleanup(() => clearTimeout(timeout));
 
   return (
     <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">

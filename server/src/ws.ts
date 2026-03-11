@@ -17,6 +17,17 @@ export interface WsData {
 const onlineUsers = new Map<number, WsUser>();
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+// Call state tracking for system events
+const pendingOffers = new Map<string, { callerId: number; calleeId: number; offeredAt: number }>();
+const activeCalls = new Map<string, { callerId: number; calleeId: number; startedAt: number }>();
+
+function callKey(a: number, b: number) {
+  return `${Math.min(a, b)}-${Math.max(a, b)}`;
+}
+
+export function getPendingOffers() { return pendingOffers; }
+export function getActiveCalls() { return activeCalls; }
+
 interface WsRateEntry { count: number; resetAt: number }
 const wsRateLimit = new Map<number, WsRateEntry>();
 
@@ -80,6 +91,17 @@ export function createWsHandlers(db: Database) {
             for (const msg of queued) {
               ws.send(JSON.stringify({ type: "chat", from: msg.sender_id, id: msg.id, ciphertext: msg.ciphertext, nonce: msg.nonce, timestamp: msg.created_at }));
               db.query("UPDATE messages SET delivered = 1 WHERE id = ?").run(msg.id);
+            }
+
+            // Deliver queued system events
+            const queuedEvents = db
+              .query("SELECT id, user1_id, user2_id, event_type, metadata, target_id, created_at FROM system_events WHERE (user1_id = ? OR user2_id = ?) AND delivered = 0 ORDER BY created_at")
+              .all(payload.sub, payload.sub) as Array<{ id: number; user1_id: number; user2_id: number; event_type: string; metadata: string | null; target_id: number | null; created_at: number }>;
+            for (const evt of queuedEvents) {
+              // rate_limited events only visible to sender
+              if (evt.event_type === "rate_limited" && evt.user1_id !== payload.sub) continue;
+              ws.send(JSON.stringify({ type: "system-event", event: evt }));
+              db.query("UPDATE system_events SET delivered = 1 WHERE id = ?").run(evt.id);
             }
 
             // Broadcast online status to friends
@@ -147,6 +169,7 @@ export function createWsHandlers(db: Database) {
         case "call-offer": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
           if (typeof data.offer?.sdp !== "string" || data.offer.sdp.length > MAX_SDP) break;
+          pendingOffers.set(callKey(userId, data.targetId), { callerId: userId, calleeId: data.targetId, offeredAt: Date.now() });
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, offer: data.offer }));
@@ -156,6 +179,12 @@ export function createWsHandlers(db: Database) {
         case "call-answer": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
           if (typeof data.answer?.sdp !== "string" || data.answer.sdp.length > MAX_SDP) break;
+          const key = callKey(userId, data.targetId);
+          const pending = pendingOffers.get(key);
+          if (pending) {
+            pendingOffers.delete(key);
+            activeCalls.set(key, { ...pending, startedAt: Date.now() });
+          }
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "call-answer", senderId: userId, answer: data.answer }));
@@ -173,6 +202,34 @@ export function createWsHandlers(db: Database) {
         }
         case "call-end": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          const key = callKey(userId, data.targetId);
+          if (activeCalls.has(key)) {
+            const { callerId, calleeId, startedAt } = activeCalls.get(key)!;
+            activeCalls.delete(key);
+            const duration = Math.round((Date.now() - startedAt) / 1000);
+            const meta = JSON.stringify({ duration });
+            db.query("INSERT INTO system_events (user1_id, user2_id, event_type, metadata) VALUES (?, ?, 'call_ended', ?)").run(calleeId, callerId, meta);
+            const { id: evtId } = db.query("SELECT last_insert_rowid() as id").get() as { id: number };
+            const evt = { id: evtId, event_type: "call_ended", user1_id: calleeId, user2_id: callerId, metadata: meta, created_at: Math.floor(Date.now() / 1000) };
+            const evtMsg = JSON.stringify({ type: "system-event", event: evt });
+            const ws1 = onlineUsers.get(calleeId);
+            const ws2 = onlineUsers.get(callerId);
+            if (ws1) ws1.ws.send(evtMsg);
+            if (ws2) ws2.ws.send(evtMsg);
+            if (ws1 || ws2) db.query("UPDATE system_events SET delivered = 1 WHERE id = ?").run(evtId);
+          } else if (pendingOffers.has(key)) {
+            const { callerId, calleeId } = pendingOffers.get(key)!;
+            pendingOffers.delete(key);
+            db.query("INSERT INTO system_events (user1_id, user2_id, event_type) VALUES (?, ?, 'missed_call')").run(calleeId, callerId);
+            const { id: evtId } = db.query("SELECT last_insert_rowid() as id").get() as { id: number };
+            const evt = { id: evtId, event_type: "missed_call", user1_id: calleeId, user2_id: callerId, metadata: null, created_at: Math.floor(Date.now() / 1000) };
+            const evtMsg = JSON.stringify({ type: "system-event", event: evt });
+            const ws1 = onlineUsers.get(calleeId);
+            const ws2 = onlineUsers.get(callerId);
+            if (ws1) ws1.ws.send(evtMsg);
+            if (ws2) ws2.ws.send(evtMsg);
+            if (ws1 || ws2) db.query("UPDATE system_events SET delivered = 1 WHERE id = ?").run(evtId);
+          }
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "call-end", senderId: userId }));
@@ -204,6 +261,7 @@ export function createWsHandlers(db: Database) {
 
         case "typing": {
           if (typeof data.to !== "number" || !isFriend(data.to)) break;
+          if (!checkWsRate(userId)) break;
           const target = onlineUsers.get(data.to);
           if (target) {
             const isTyping = !!data.isTyping;
@@ -222,6 +280,10 @@ export function createWsHandlers(db: Database) {
           }
           break;
         }
+
+        default:
+          ws.send(JSON.stringify({ type: "error", message: "Unknown message type" }));
+          break;
       }
     },
 

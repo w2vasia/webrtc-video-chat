@@ -14,6 +14,8 @@ export interface ChatMessage {
   pending?: boolean;
   serverId?: string;
   readAt?: number;
+  kind?: "chat" | "missed_call" | "call_ended" | "rate_limited";
+  meta?: { duration?: number };
 }
 
 interface ChatState {
@@ -126,10 +128,27 @@ export function useChat() {
       for (const m of res.messages) {
         try {
           const text = await decrypt(sharedKey, m.ciphertext, m.nonce);
-          msgs.push({ id: String(m.id), serverId: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp, readAt: m.readAt ?? undefined });
+          msgs.push({ id: String(m.id), serverId: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text, timestamp: m.timestamp, readAt: m.readAt ? m.readAt * 1000 : undefined });
         } catch {
           msgs.push({ id: String(m.id), from: m.from === myId ? 0 : m.from, to: m.to, text: "[Unable to decrypt]", timestamp: m.timestamp });
         }
+      }
+      // Merge system events into messages
+      if (res.systemEvents) {
+        for (const evt of res.systemEvents) {
+          const evtFriendId = evt.user1_id === myId ? evt.user2_id : evt.user1_id;
+          const meta = evt.metadata ? (typeof evt.metadata === "string" ? JSON.parse(evt.metadata) : evt.metadata) : undefined;
+          msgs.push({
+            id: `evt-${evt.id}`,
+            from: evtFriendId,
+            to: myId!,
+            text: "",
+            timestamp: evt.created_at,
+            kind: evt.event_type,
+            meta,
+          });
+        }
+        msgs.sort((a, b) => a.timestamp - b.timestamp);
       }
       if (!beforeId) historyLoaded.add(friendId);
       setState("hasMore", friendId, res.messages.length >= 50);
@@ -137,7 +156,9 @@ export function useChat() {
         setState("conversations", friendId, (prev = []) => {
           const existingIds = new Set(prev.map((p) => p.id));
           const newMsgs = msgs.filter((m) => !existingIds.has(m.id));
-          return [...newMsgs, ...prev];
+          const merged = [...newMsgs, ...prev];
+          merged.sort((a, b) => a.timestamp - b.timestamp);
+          return merged;
         });
       }
     } finally {
@@ -235,6 +256,34 @@ export function useChat() {
       if (idx !== -1) {
         setState("conversations", fid, idx, { pending: false, id: String(data.serverId), timestamp: data.timestamp });
       }
+    }));
+
+    // eslint-disable-next-line solid/reactivity -- WS event handler
+    unsubs.push(wsClient.on("system-event", (data) => {
+      const evt = data.event;
+      const myId = user()?.id;
+      if (!myId) return;
+      // Determine which conversation this belongs to
+      let friendId: number;
+      if (evt.event_type === "rate_limited") {
+        friendId = evt.target_id;
+      } else {
+        friendId = evt.user1_id === myId ? evt.user2_id : evt.user1_id;
+      }
+      const meta = evt.metadata ? (typeof evt.metadata === "string" ? JSON.parse(evt.metadata) : evt.metadata) : undefined;
+      const msg: ChatMessage = {
+        id: `evt-${evt.id}`,
+        from: friendId, // doesn't matter for system msgs, just needs to be in the conversation
+        to: myId,
+        text: "",
+        timestamp: evt.created_at,
+        kind: evt.event_type,
+        meta,
+      };
+      setState("conversations", friendId, (prev = []) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
     }));
 
     // eslint-disable-next-line solid/reactivity -- WS event handler

@@ -35,9 +35,9 @@ export default function Chat() {
   };
 
   onMount(async () => {
+    await initKeys();
     cleanupChat = setupListeners();
     cleanupCall = setupCallListeners();
-    await initKeys();
     wsClient.connect(token()!);
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();

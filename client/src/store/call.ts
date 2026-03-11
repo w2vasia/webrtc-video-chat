@@ -146,6 +146,9 @@ export function useCall() {
       call.onEnded = undefined; // prevent re-entrant loop
       call.end();
     }
+    pendingOffer = null;
+    pendingSenderId = null;
+    pendingCandidates = [];
     setActiveCall(null);
     setLocalStream(null);
     setRemoteStream(null);

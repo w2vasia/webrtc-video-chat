@@ -21,44 +21,51 @@ export function messageRoutes(db: Database) {
     const beforeId = c.req.query("before_id"); // cursor: message id
     const limit = Math.min(Number(c.req.query("limit")) || 50, 100);
 
-    let query = `
+    const beforeIdNum = beforeId !== undefined ? Number(beforeId) : null;
+    if (beforeId !== undefined && (!Number.isInteger(beforeIdNum) || beforeIdNum! <= 0)) {
+      return c.json({ error: "Invalid before_id" }, 400);
+    }
+
+    // Chat messages
+    let msgQuery = `
       SELECT id, sender_id, recipient_id, ciphertext, nonce, created_at, read_at
       FROM messages
       WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
     `;
-    const params: (string | number)[] = [userId, friendId, friendId, userId];
+    const msgParams: (number)[] = [userId, friendId, friendId, userId];
+    if (beforeIdNum) { msgQuery += " AND id < ?"; msgParams.push(beforeIdNum); }
+    msgQuery += " ORDER BY id DESC LIMIT ?";
+    msgParams.push(limit);
 
-    if (beforeId !== undefined) {
-      const beforeIdNum = Number(beforeId);
-      if (!Number.isInteger(beforeIdNum) || beforeIdNum <= 0) {
-        return c.json({ error: "Invalid before_id" }, 400);
-      }
-      query += " AND id < ?";
-      params.push(beforeIdNum);
+    const rows = db.query(msgQuery).all(...msgParams) as Array<{
+      id: number; sender_id: number; recipient_id: number; ciphertext: string; nonce: string; created_at: number; read_at: number | null;
+    }>;
+
+    // System events for this conversation
+    let evtQuery = `
+      SELECT id, user1_id, user2_id, event_type, metadata, created_at
+      FROM system_events
+      WHERE ((user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?))
+        AND NOT (event_type = 'rate_limited' AND user1_id != ?)
+    `;
+    const evtParams: number[] = [userId, friendId, friendId, userId, userId];
+    if (rows.length) {
+      const oldestTs = rows[rows.length - 1].created_at;
+      evtQuery += " AND created_at >= ?";
+      evtParams.push(oldestTs);
     }
+    evtQuery += " ORDER BY created_at";
 
-    query += " ORDER BY id DESC LIMIT ?";
-    params.push(limit);
-
-    const rows = db.query(query).all(...params) as Array<{
-      id: number;
-      sender_id: number;
-      recipient_id: number;
-      ciphertext: string;
-      nonce: string;
-      created_at: number;
-      read_at: number | null;
+    const events = db.query(evtQuery).all(...evtParams) as Array<{
+      id: number; user1_id: number; user2_id: number; event_type: string; metadata: string | null; created_at: number;
     }>;
 
     return c.json({
       messages: rows.reverse().map((r) => ({
-        id: r.id,
-        from: r.sender_id,
-        to: r.recipient_id,
-        ciphertext: r.ciphertext,
-        nonce: r.nonce,
-        timestamp: r.created_at,
-        readAt: r.read_at ? r.read_at * 1000 : null,
+        id: r.id, from: r.sender_id, to: r.recipient_id, ciphertext: r.ciphertext, nonce: r.nonce, timestamp: r.created_at, readAt: r.read_at ?? null,
+      })),
+      systemEvents: events.map((r) => ({
+        id: r.id, user1_id: r.user1_id, user2_id: r.user2_id, event_type: r.event_type, metadata: r.metadata, created_at: r.created_at,
       })),
     }, 200);
   });
@@ -82,7 +89,7 @@ export function messageRoutes(db: Database) {
     ).run(userId, friendId, friendId, userId);
 
     const { changes } = db.query("SELECT changes() as changes").get() as { changes: number };
-    return c.json({ deleted: changes }, 200);
+    return c.json({ ok: true, deleted: changes }, 200);
   });
 
   return app;

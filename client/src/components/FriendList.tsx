@@ -30,7 +30,13 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
 
   return (
     <div class="flex-1 overflow-y-auto" onClick={(e) => { if (e.target === e.currentTarget) props.onDeselect(); }}>
-      <Show when={friends()?.length === 0}>
+      <Show when={friends.error}>
+        <div class="px-4 py-4 text-center">
+          <p class="text-danger text-sm">Failed to load friends</p>
+          <button class="text-primary text-sm mt-1 cursor-pointer bg-transparent border-0 font-[inherit]" onClick={refetch}>Retry</button>
+        </div>
+      </Show>
+      <Show when={!friends.error && friends()?.length === 0}>
         <div class="px-4 py-8 text-center">
           <svg class="w-10 h-10 mx-auto mb-3 opacity-40 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
           <p class="text-gray-400 text-[0.9375rem]">No friends yet</p>
@@ -47,7 +53,7 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
               <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center font-semibold text-[1.05rem] text-white">
                 {friend.displayName[0].toUpperCase()}
               </div>
-              <div class={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${props.onlineUsers[friend.id] ? "bg-success" : "bg-gray-400"}`} />
+              <div class={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${props.onlineUsers[friend.id] ? "bg-success" : "bg-gray-400"}`} aria-label={props.onlineUsers[friend.id] ? "Online" : "Offline"} />
             </div>
             <div class="flex flex-col min-w-0">
               <span class="font-semibold text-[0.9375rem] text-gray-900">{friend.displayName}</span>
