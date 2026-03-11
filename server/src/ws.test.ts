@@ -654,6 +654,42 @@ describe("message — call signaling", () => {
     );
     expect(wsA.sent).toHaveLength(0);
   });
+
+  it("relays callType in call-offer to target", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-offer", targetId: userBId, offer: { sdp: "v=0...", type: "offer" }, callType: "voice" }),
+    );
+
+    const msg = lastMsg(wsB);
+    expect(msg.type).toBe("call-offer");
+    expect(msg.callType).toBe("voice");
+  });
+
+  it("relays camera-on to target", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "camera-on", targetId: userBId }),
+    );
+
+    const msg = lastMsg(wsB);
+    expect(msg.type).toBe("camera-on");
+    expect(msg.senderId).toBe(userAId);
+  });
+
+  it("drops camera-on to non-friend", async () => {
+    const userC = await createUser(db, "charlie@test.com", "Charlie");
+    const wsC = makeMockWs();
+    await authWs(handlers, wsC, userC.id, "charlie@test.com");
+    wsB.sent = [];
+
+    await handlers.message(
+      wsC as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "camera-on", targetId: userBId }),
+    );
+
+    expect(wsB.sent).toHaveLength(0);
+  });
 });
 
 // ─── ping/pong ────────────────────────────────────────────────────────────────
