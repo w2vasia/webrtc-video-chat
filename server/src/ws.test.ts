@@ -610,6 +610,22 @@ describe("message — call signaling", () => {
 
     expect(wsA.sent).toHaveLength(0);
   });
+
+  it("drops call-offer with oversized SDP", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-offer", targetId: userBId, offer: { sdp: "x".repeat(8193), type: "offer" } }),
+    );
+    expect(wsB.sent).toHaveLength(0);
+  });
+
+  it("drops ice-candidate with oversized candidate string", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "ice-candidate", targetId: userBId, candidate: { candidate: "c".repeat(2049) } }),
+    );
+    expect(wsB.sent).toHaveLength(0);
+  });
 });
 
 // ─── ping/pong ────────────────────────────────────────────────────────────────

@@ -96,6 +96,8 @@ export function createWsHandlers(db: Database) {
 
       // Max payload size for ciphertext/nonce (64KB)
       const MAX_PAYLOAD = 65536;
+      const MAX_SDP = 8192;
+      const MAX_ICE = 2048;
 
       switch (data.type) {
         case "chat": {
@@ -125,6 +127,7 @@ export function createWsHandlers(db: Database) {
 
         case "call-offer": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (typeof data.offer?.sdp !== "string" || data.offer.sdp.length > MAX_SDP) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, offer: data.offer }));
@@ -133,6 +136,7 @@ export function createWsHandlers(db: Database) {
         }
         case "call-answer": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (typeof data.answer?.sdp !== "string" || data.answer.sdp.length > MAX_SDP) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "call-answer", senderId: userId, answer: data.answer }));
@@ -141,6 +145,7 @@ export function createWsHandlers(db: Database) {
         }
         case "ice-candidate": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (typeof data.candidate?.candidate !== "string" || data.candidate.candidate.length > MAX_ICE) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "ice-candidate", senderId: userId, candidate: data.candidate }));
