@@ -75,7 +75,19 @@ export class WebRTCCall {
     };
   }
 
+  attachLocalStream(stream: MediaStream): void {
+    this.localStream = stream;
+    stream.getTracks().forEach((t) => this.pc.addTrack(t, stream));
+  }
+
   async startLocalMedia(video = true, audio = true): Promise<MediaStream> {
+    const stream = await WebRTCCall.acquireMedia(video, audio);
+    this.attachLocalStream(stream);
+    return stream;
+  }
+
+  /** Acquire media independently of a peer connection (preserves user-gesture context). */
+  static async acquireMedia(video = true, audio = true): Promise<MediaStream> {
     const attempts: MediaStreamConstraints[] = [
       {
         audio: audio ? { echoCancellation: true, noiseSuppression: true } : false,
@@ -86,9 +98,7 @@ export class WebRTCCall {
     ];
     for (const constraints of attempts) {
       try {
-        this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        this.localStream.getTracks().forEach((t) => this.pc.addTrack(t, this.localStream!));
-        return this.localStream;
+        return await navigator.mediaDevices.getUserMedia(constraints);
       } catch {}
     }
     throw new Error("No camera or microphone available");

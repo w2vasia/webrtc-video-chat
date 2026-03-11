@@ -14,13 +14,14 @@ export default function CallView() {
     callType, remoteVideoPrompt, enableCamera, expandToVideo, callTargetId,
   } = useCall();
   const { state: chatState } = useChat();
-  const [videoOn, setVideoOn] = createSignal(true);
+  const [videoOn, setVideoOn] = createSignal(callType() === "video");
   const [audioOn, setAudioOn] = createSignal(true);
   let remoteVideoEl: HTMLVideoElement | undefined;
   let localVideoEl: HTMLVideoElement | undefined;
 
   createEffect(() => { if (remoteVideoEl) bindStream(remoteVideoEl, remoteStream()); });
   createEffect(() => { if (localVideoEl) bindStream(localVideoEl, localStream()); });
+  createEffect(() => { setVideoOn(callType() === "video"); });
 
   const statusText: Record<string, string> = {
     calling: "Calling...",

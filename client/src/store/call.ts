@@ -81,7 +81,12 @@ export function useCall() {
     setCallError("");
     setCallType(type);
     setRemoteVideoPrompt(false);
+    let stream: MediaStream | undefined;
     try {
+      // Acquire media FIRST — Safari drops user-gesture context after any await,
+      // so getUserMedia must be the first async call from the click handler.
+      stream = await WebRTCCall.acquireMedia(type === "video");
+
       const call = await WebRTCCall.create(targetId, type);
       call.onRemoteStream = (s) => setRemoteStream(s);
       call.onConnected = () => setCallStatus("connected");
@@ -89,7 +94,7 @@ export function useCall() {
       call.onReconnecting = () => setCallStatus("connecting");
       call.onFailed = () => showToast("Call lost", "error");
 
-      const stream = await call.startLocalMedia(type === "video");
+      call.attachLocalStream(stream);
       setLocalStream(stream);
       setActiveCall(call);
       setCallTargetId(targetId);
@@ -98,7 +103,10 @@ export function useCall() {
       await call.createOffer();
     } catch (e) {
       console.error("Failed to start call", e);
-      setCallError(e instanceof Error ? e.message : "Failed to start call");
+      stream?.getTracks().forEach((t) => t.stop());
+      const msg = e instanceof Error ? e.message : "Failed to start call";
+      showToast(msg, "error");
+      setCallError(msg);
       endCall();
     }
   }
@@ -192,9 +200,9 @@ export function useCall() {
     }
   }
 
-  function expandToVideo() {
+  async function expandToVideo() {
     setRemoteVideoPrompt(false);
-    setCallType("video");
+    await enableCamera();
   }
 
   return {

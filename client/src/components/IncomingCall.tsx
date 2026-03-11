@@ -1,8 +1,14 @@
 import { onCleanup } from "solid-js";
 import { useCall } from "../store/call";
+import { useChat } from "../store/chat";
 
 export default function IncomingCall() {
-  const { acceptCall, rejectCall, callType } = useCall();
+  const { acceptCall, rejectCall, callType, callTargetId } = useCall();
+  const { state: chatState } = useChat();
+  const callerName = () => {
+    const id = callTargetId();
+    return id ? chatState.friendInfo[id]?.name ?? "Someone" : "Someone";
+  };
 
   const timeout = setTimeout(() => rejectCall(), 30_000);
   onCleanup(() => clearTimeout(timeout));
@@ -23,9 +29,10 @@ export default function IncomingCall() {
     <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
       <div class="bg-white rounded-[10px] p-8 flex flex-col items-center gap-5 shadow-xl w-72">
         {icon()}
-        <h3 class="text-lg font-semibold text-gray-900 m-0">
+        <h3 class="text-lg font-semibold text-gray-900 m-0">{callerName()}</h3>
+        <p class="text-sm text-gray-500 m-0">
           Incoming {callType() === "voice" ? "voice" : "video"} call
-        </h3>
+        </p>
         <div class="flex gap-3">
           <button
             class="px-5 py-2 rounded-full bg-success hover:bg-success-hover text-white font-medium border-0 cursor-pointer transition-colors"

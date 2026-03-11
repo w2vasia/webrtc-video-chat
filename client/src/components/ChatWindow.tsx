@@ -1,6 +1,6 @@
 import { createSignal, For, createEffect, Show, onCleanup, untrack } from "solid-js";
 import { useChat, type ChatMessage } from "../store/chat";
-import { useCall } from "../store/call";
+
 import { wsClient } from "../lib/ws";
 
 function formatDuration(sec: number) {
@@ -47,7 +47,6 @@ function SystemEventPill(props: { msg: ChatMessage }) {
 
 export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number, type: "voice" | "video") => void }) {
   const { state, setState, sendMessage, sendTyping, loadHistory } = useChat();
-  const { callStatus, callTargetId, acceptCall, rejectCall, callType } = useCall();
   const [input, setInput] = createSignal("");
   const [error, setError] = createSignal("");
   const [loadingMore, setLoadingMore] = createSignal(false);
@@ -183,16 +182,6 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
           </button>
         </div>
       </div>
-
-      {/* Incoming call banner */}
-      <Show when={callStatus() === "incoming" && callTargetId() === props.friendId}>
-        <div class="flex items-center gap-2.5 px-5 py-2.5 bg-success-soft text-gray-900 font-medium text-[0.9375rem] border-b border-gray-200 animate-pulse-bg">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-          <span>Incoming {callType() === "voice" ? "voice" : "video"} call</span>
-          <button class="ml-auto px-4 py-1.5 bg-success hover:bg-success-hover text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-colors" onClick={acceptCall}>Accept</button>
-          <button class="px-4 py-1.5 bg-danger hover:bg-danger-hover text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-colors" onClick={rejectCall}>Decline</button>
-        </div>
-      </Show>
 
       {/* Messages */}
       <div class="flex-1 overflow-y-auto px-5 pt-5 flex flex-col gap-2 bg-chat-bg messages-scroll" ref={messagesContainer} onScroll={handleScroll}>
