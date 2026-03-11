@@ -123,7 +123,7 @@ describe("GET /api/messages/:friendId", () => {
     expect(res.status).toBe(400);
   });
 
-  it("includes readAt in milliseconds when message is read", async () => {
+  it("includes readAt in seconds when message is read", async () => {
     makeFriends(userAId, userBId);
     const msg = insertMessage(userBId, userAId, "cipher==", "nonce1234567890a");
     db.query("UPDATE messages SET read_at = unixepoch() WHERE id = ?").run(msg.id);
@@ -133,7 +133,8 @@ describe("GET /api/messages/:friendId", () => {
     });
     const body = await res.json();
     expect(body.messages[0].readAt).not.toBeNull();
-    expect(body.messages[0].readAt).toBeGreaterThan(1_000_000_000_000); // ms timestamp
+    expect(body.messages[0].readAt).toBeGreaterThan(1_000_000_000); // unix seconds
+    expect(body.messages[0].readAt).toBeLessThan(1_000_000_000_000); // not ms
   });
 
   it("returns readAt as null for unread messages", async () => {

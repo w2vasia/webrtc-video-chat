@@ -73,8 +73,10 @@ export function friendRoutes(db: Database) {
   // List accepted friends
   app.get("/", async (c) => {
     const userId = c.get("userId") as number;
-    const limit = Math.min(Number(c.req.query("limit")) || 100, 200);
-    const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
+    const rawLimit = Number(c.req.query("limit"));
+    const limit = Math.min(Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 100, 200);
+    const rawOffset = Number(c.req.query("offset"));
+    const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
 
     const friends = db
       .query(

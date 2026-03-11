@@ -38,7 +38,7 @@ export default function Login() {
         <h1 class="text-primary text-4xl text-center font-semibold">Whisper</h1>
         <h2 class="text-gray-500 text-xl text-center font-normal">Sign In</h2>
         <p class="text-gray-400 text-sm text-center">End-to-end encrypted messaging</p>
-        {error() && <p class="text-danger text-sm text-center">{error()}</p>}
+        {error() && <p class="text-danger text-sm text-center" role="alert">{error()}</p>}
         <input class={inputCls} type="email" placeholder="Email" value={email()} onInput={(e) => setEmail(e.target.value)} autocomplete="email" required />
         <input class={inputCls} type="password" placeholder="Password" value={password()} onInput={(e) => setPassword(e.target.value)} autocomplete="current-password" required />
         <button class={btnCls} type="submit" disabled={loading()}>

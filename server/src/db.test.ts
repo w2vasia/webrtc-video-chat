@@ -14,6 +14,7 @@ describe("database", () => {
     expect(names).toContain("messages");
     expect(names).toContain("public_keys");
     expect(names).toContain("push_subscriptions");
+    expect(names).toContain("system_events");
   });
 
   it("sets busy_timeout > 0 so concurrent writes retry instead of failing immediately", () => {

@@ -51,3 +51,13 @@ export async function deleteKey(name: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+export async function clearAllKeys(): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => { cachedDb = null; resolve(); };
+    tx.onerror = () => reject(tx.error);
+  });
+}

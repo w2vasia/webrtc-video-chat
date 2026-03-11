@@ -49,11 +49,11 @@ export default function PendingRequests() {
   }
 
   return (
-    <Show when={requests()?.length}>
+    <Show when={requests()?.length || requests.error}>
       <div class="px-4 py-3 border-b border-gray-200">
         <h3 class="text-[0.8125rem] text-gray-500 font-semibold uppercase tracking-wide mb-2">Requests</h3>
-        {error() && (
-          <p class="text-danger text-sm py-1">{error()}</p>
+        {(error() || requests.error) && (
+          <p class="text-danger text-sm py-1">{error() || "Failed to load requests"}</p>
         )}
         <For each={requests()}>
           {(req) => (

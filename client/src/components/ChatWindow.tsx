@@ -1,7 +1,49 @@
 import { createSignal, For, createEffect, Show, onCleanup, untrack } from "solid-js";
-import { useChat } from "../store/chat";
+import { useChat, type ChatMessage } from "../store/chat";
 import { useCall } from "../store/call";
 import { wsClient } from "../lib/ws";
+
+function formatDuration(sec: number) {
+  if (sec >= 60) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return s > 0 ? `${m} min ${s} sec` : `${m} min`;
+  }
+  return `${sec} sec`;
+}
+
+function SystemEventPill(props: { msg: ChatMessage }) {
+  const icon = () => {
+    if (props.msg.kind === "missed_call") return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>
+      </svg>
+    );
+    if (props.msg.kind === "call_ended") return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+      </svg>
+    );
+    return null;
+  };
+  const label = () => {
+    switch (props.msg.kind) {
+      case "missed_call": return "Missed call";
+      case "call_ended": return `Call \u00B7 ${formatDuration(props.msg.meta?.duration ?? 0)}`;
+      case "rate_limited": return "Some messages weren\u2019t delivered (rate limit)";
+      default: return "";
+    }
+  };
+  return (
+    <div class="flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-400">
+      {icon()}
+      <span>{label()}</span>
+      <span class="text-gray-300">&middot;</span>
+      <span>{new Date(props.msg.timestamp * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+    </div>
+  );
+}
 
 export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number) => void }) {
   const { state, setState, sendMessage, sendTyping, loadHistory } = useChat();
@@ -22,6 +64,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
 
   onCleanup(() => {
     clearTimeout(typingTimer);
+    clearTimeout(scrollDebounce);
     sendTyping(props.friendId, false);
   });
 
@@ -63,11 +106,15 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
     void isTyping; // track typing state to trigger scroll when indicator appears
   });
 
+  let scrollDebounce: ReturnType<typeof setTimeout> | undefined;
   function handleScroll() {
     if (!messagesContainer) return;
     const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
     shouldScrollToBottom = scrollHeight - scrollTop - clientHeight < 150;
-    if (scrollTop < 50) loadOlder();
+    if (scrollTop < 50) {
+      clearTimeout(scrollDebounce);
+      scrollDebounce = setTimeout(() => loadOlder(), 100);
+    }
   }
 
   async function loadOlder() {
@@ -145,19 +192,24 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
         </Show>
         <For each={messages()}>
           {(msg) => (
-            <div class={`flex ${msg.from === 0 ? "justify-end" : "justify-start"}`}>
-              <div class={`px-4 py-2.5 rounded-2xl max-w-[70%] ${msg.from === 0 ? "bg-primary text-white rounded-br-[4px]" : "bg-chat-surface text-gray-900 rounded-bl-[4px] shadow-sm"}`}>
-                <p class="text-[0.9375rem] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
-                <span class={`text-[0.7rem] mt-1 flex items-center gap-1 ${msg.from === 0 ? "justify-end text-white/70" : "text-gray-400"}`}>
-                  {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  <Show when={msg.from === 0}>
-                    <span class={`text-[10px] select-none leading-none ${msg.readAt ? "text-white" : msg.serverId ? "text-white/60" : "text-white/30"}`}>
-                      {msg.readAt ? "✓✓" : msg.serverId ? "✓" : "·"}
-                    </span>
-                  </Show>
-                </span>
+            <Show
+              when={!msg.kind || msg.kind === "chat"}
+              fallback={<SystemEventPill msg={msg} />}
+            >
+              <div class={`flex ${msg.from === 0 ? "justify-end" : "justify-start"}`}>
+                <div class={`px-4 py-2.5 rounded-2xl max-w-[70%] ${msg.from === 0 ? "bg-primary text-white rounded-br-[4px]" : "bg-chat-surface text-gray-900 rounded-bl-[4px] shadow-sm"}`}>
+                  <p class="text-[0.9375rem] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                  <span class={`text-[0.7rem] mt-1 flex items-center gap-1 ${msg.from === 0 ? "justify-end text-white/70" : "text-gray-400"}`}>
+                    {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    <Show when={msg.from === 0}>
+                      <span class={`text-[10px] select-none leading-none ${msg.readAt ? "text-white" : msg.serverId ? "text-white/60" : "text-white/30"}`}>
+                        {msg.readAt ? "✓✓" : msg.serverId ? "✓" : "·"}
+                      </span>
+                    </Show>
+                  </span>
+                </div>
               </div>
-            </div>
+            </Show>
           )}
         </For>
         <Show when={state.typingUsers[props.friendId]}>
@@ -171,7 +223,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
       </div>
 
       {/* Error */}
-      {error() && <p class="text-danger text-sm px-4 py-2">{error()}</p>}
+      {error() && <p class="text-danger text-sm px-4 py-2" role="alert">{error()}</p>}
 
       {/* Input */}
       <form class="flex items-end gap-3 px-4 py-3 bg-white border-t border-gray-200" onSubmit={handleSend}>
@@ -185,6 +237,7 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
         <button
           class="flex-shrink-0 w-11 h-11 bg-primary hover:bg-primary-hover text-white rounded-full flex items-center justify-center cursor-pointer transition-colors"
           type="submit"
+          aria-label="Send message"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
