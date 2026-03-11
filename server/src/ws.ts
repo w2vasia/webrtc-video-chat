@@ -157,8 +157,14 @@ export function createWsHandlers(db: Database) {
         }
 
         case "read": {
-          db.query("UPDATE messages SET read_at = unixepoch() WHERE id = ? AND recipient_id = ?")
-            .run(data.messageId, userId);
+          if (typeof data.messageId !== "number" || !Number.isInteger(data.messageId)) break;
+          if (typeof data.senderId !== "number" || !Number.isInteger(data.senderId)) break;
+          if (!isFriend(data.senderId)) break;
+          const msgRow = db.query(
+            "SELECT id FROM messages WHERE id = ? AND sender_id = ? AND recipient_id = ?"
+          ).get(data.messageId, data.senderId, userId);
+          if (!msgRow) break;
+          db.query("UPDATE messages SET read_at = unixepoch() WHERE id = ?").run(data.messageId);
           const sender = onlineUsers.get(data.senderId);
           if (sender) {
             sender.ws.send(JSON.stringify({ type: "read", messageId: data.messageId }));

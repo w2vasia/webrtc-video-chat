@@ -467,6 +467,58 @@ describe("message — read", () => {
     expect(notification.type).toBe("read");
     expect(notification.messageId).toBe(msg.id);
   });
+
+  it("does not notify arbitrary user when senderId does not own the message", async () => {
+    const userA = await createUser(db, "alice@test.com", "Alice");
+    const userB = await createUser(db, "bob@test.com", "Bob");
+    const userC = await createUser(db, "charlie@test.com", "Charlie");
+    makeFriends(db, userA.id, userB.id);
+    makeFriends(db, userA.id, userC.id);
+
+    // Message from A to B
+    const msg = db
+      .query("INSERT INTO messages (sender_id, recipient_id, ciphertext, nonce, delivered) VALUES (?, ?, ?, ?, 1) RETURNING id")
+      .get(userA.id, userB.id, "cipher==", "nonce1234567890a") as { id: number };
+
+    const wsA = makeMockWs();
+    const wsC = makeMockWs();
+    const wsB = makeMockWs();
+    await authWs(handlers, wsA, userA.id, "alice@test.com");
+    await authWs(handlers, wsC, userC.id, "charlie@test.com");
+    await authWs(handlers, wsB, userB.id, "bob@test.com");
+    wsA.sent = [];
+    wsC.sent = [];
+
+    // B sends read but lies and claims C sent the message
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "read", messageId: msg.id, senderId: userC.id }),
+    );
+
+    // C must NOT receive a spurious read notification
+    expect(wsC.sent).toHaveLength(0);
+    // A (the real sender) must NOT receive it either (wrong senderId)
+    expect(wsA.sent).toHaveLength(0);
+  });
+
+  it("drops read message with non-integer messageId", async () => {
+    const userA = await createUser(db, "alice@test.com", "Alice");
+    const userB = await createUser(db, "bob@test.com", "Bob");
+    makeFriends(db, userA.id, userB.id);
+
+    const wsA = makeMockWs();
+    const wsB = makeMockWs();
+    await authWs(handlers, wsA, userA.id, "alice@test.com");
+    await authWs(handlers, wsB, userB.id, "bob@test.com");
+    wsA.sent = [];
+
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "read", messageId: "not-a-number", senderId: userA.id }),
+    );
+
+    expect(wsA.sent).toHaveLength(0);
+  });
 });
 
 // ─── call signaling ───────────────────────────────────────────────────────────
