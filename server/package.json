@@ -1,7 +1,7 @@
 {
   "name": "server",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
+    "dev": "lsof -ti :3000 | xargs kill -9 2>/dev/null; bun --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "test": "bun test"
   },
