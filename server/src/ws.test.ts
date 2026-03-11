@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import type { ServerWebSocket } from "bun";
-import { createWsHandlers, getOnlineUsers } from "./ws";
+import { createWsHandlers, getOnlineUsers, getWsRateLimit } from "./ws";
 import type { WsData } from "./ws";
 import { createToken } from "./auth";
 import { getDb, migrate } from "./db";
@@ -65,6 +65,7 @@ beforeEach(() => {
   migrate(db);
   handlers = createWsHandlers(db);
   getOnlineUsers().clear();
+  getWsRateLimit().clear();
 });
 
 // ─── open ─────────────────────────────────────────────────────────────────────
@@ -365,6 +366,23 @@ describe("message — chat", () => {
       }),
     );
     expect(wsA.sent).toHaveLength(0);
+  });
+
+  it("drops messages exceeding 60 per minute per user", async () => {
+    // Send exactly 60 messages — all should be ACK'd
+    for (let i = 0; i < 60; i++) {
+      await handlers.message(
+        wsA as unknown as ServerWebSocket<WsData>,
+        JSON.stringify({ type: "chat", to: userBId, ciphertext: "x==", nonce: "nonce1234567890a", clientId: `id-${i}` }),
+      );
+    }
+    const sentAfter60 = wsA.sent.length;
+    // 61st message: should be silently dropped — no new ACK
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "chat", to: userBId, ciphertext: "x==", nonce: "nonce1234567890a", clientId: "id-61" }),
+    );
+    expect(wsA.sent.length).toBe(sentAfter60);
   });
 });
 

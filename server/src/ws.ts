@@ -17,8 +17,26 @@ export interface WsData {
 const onlineUsers = new Map<number, WsUser>();
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+interface WsRateEntry { count: number; resetAt: number }
+const wsRateLimit = new Map<number, WsRateEntry>();
+
+function checkWsRate(userId: number): boolean {
+  const now = Date.now();
+  const entry = wsRateLimit.get(userId);
+  if (!entry || now >= entry.resetAt) {
+    wsRateLimit.set(userId, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= 60;
+}
+
 export function getOnlineUsers() {
   return onlineUsers;
+}
+
+export function getWsRateLimit() {
+  return wsRateLimit;
 }
 
 export function createWsHandlers(db: Database) {
@@ -101,6 +119,7 @@ export function createWsHandlers(db: Database) {
 
       switch (data.type) {
         case "chat": {
+          if (!checkWsRate(userId)) break;
           if (typeof data.to !== "number" || !Number.isInteger(data.to)) break;
           if (typeof data.ciphertext !== "string" || data.ciphertext.length > MAX_PAYLOAD) break;
           if (typeof data.nonce !== "string" || data.nonce.length < 12 || data.nonce.length > 64) break;
