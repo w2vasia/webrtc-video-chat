@@ -69,6 +69,7 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 - Video/audio goes directly peer-to-peer via WebRTC (DTLS-SRTP).
 - Keys generated via X25519, shared secret derived via ECDH, messages encrypted with AES-256-GCM.
 - All crypto uses browser-native Web Crypto API — zero dependencies.
+- WS client auto-reconnects with exponential backoff (1s → 30s max); pending messages are queued and replayed on reconnect. Reconnects on tab visibility change. Keepalive ping every 25s. Opening a second session closes the first (code 4000).
 
 ## Features
 
@@ -77,11 +78,13 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 - E2E encrypted text chat (X25519 + AES-256-GCM)
 - Offline message queue (delivered on reconnect)
 - Read receipts
+- Typing indicators (auto-cleared server-side after 5s)
 - WebRTC video/audio calls with cam/mic toggle, ringtone
-- Online presence indicators
+- Online presence indicators (broadcast on connect/disconnect)
 - Toast notifications
 - PWA (installable, offline-capable)
 - Web push notifications (VAPID)
+- Rate limiting on auth routes (20 req / 15 min per IP)
 - Responsive (mobile + desktop)
 
 ## Project Structure
@@ -101,7 +104,8 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 │   │   │   ├── messages.ts   # Message history
 │   │   │   └── push.ts       # Push subscription
 │   │   └── middleware/
-│   │       └── auth.ts       # JWT verification
+│   │       ├── auth.ts       # JWT verification
+│   │       └── rateLimit.ts  # IP-based rate limiting
 │   └── migrations/
 │       ├── 001_init.sql      # Schema
 │       └── 002_read_receipts.sql
@@ -112,7 +116,7 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 │   │   ├── pages/            # Login, Register, Chat
 │   │   ├── components/       # FriendList, ChatWindow, VideoCall, IncomingCall, Toast, etc.
 │   │   ├── store/            # auth.ts, chat.ts, call.ts
-│   │   ├── lib/              # api.ts, ws.ts, crypto.ts, keystore.ts, webrtc.ts, push.ts, ringtone.ts
+│   │   ├── lib/              # api.ts, ws.ts, crypto.ts, keystore.ts, webrtc.ts, push.ts, ringtone.ts, utils.ts
 │   │   └── styles/
 │   └── vite.config.ts
 ├── scripts/
