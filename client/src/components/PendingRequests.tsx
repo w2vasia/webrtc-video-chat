@@ -14,19 +14,28 @@ export default function PendingRequests() {
     return res.requests as PendingRequest[];
   });
   const [error, setError] = createSignal("");
+  let errorTimer: ReturnType<typeof setTimeout> | undefined;
 
   onMount(() => {
     const intervalId = setInterval(refetch, 15000);
-    onCleanup(() => clearInterval(intervalId));
+    onCleanup(() => {
+      clearInterval(intervalId);
+      clearTimeout(errorTimer);
+    });
   });
+
+  function showError(msg: string) {
+    setError(msg);
+    clearTimeout(errorTimer);
+    errorTimer = setTimeout(() => setError(""), 3000);
+  }
 
   async function accept(friendshipId: number) {
     try {
       await api("/api/friends/accept", { method: "POST", body: { friendshipId } });
       refetch();
     } catch {
-      setError("Failed to accept request. Please try again.");
-      setTimeout(() => setError(""), 3000);
+      showError("Failed to accept request. Please try again.");
     }
   }
 
@@ -35,8 +44,7 @@ export default function PendingRequests() {
       await api("/api/friends/reject", { method: "POST", body: { friendshipId } });
       refetch();
     } catch {
-      setError("Failed to reject request. Please try again.");
-      setTimeout(() => setError(""), 3000);
+      showError("Failed to reject request. Please try again.");
     }
   }
 
