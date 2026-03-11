@@ -47,12 +47,12 @@ export default function FriendList(props: { onSelect: (id: number) => void; onDe
               <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center font-semibold text-[1.05rem] text-white">
                 {friend.displayName[0].toUpperCase()}
               </div>
-              <div class={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${props.onlineUsers.has(friend.id) ? "bg-green-500" : "bg-gray-400"}`} />
+              <div class={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${props.onlineUsers.has(friend.id) ? "bg-success" : "bg-gray-400"}`} />
             </div>
             <div class="flex flex-col min-w-0">
               <span class="font-semibold text-[0.9375rem] text-gray-900">{friend.displayName}</span>
               <span class="text-[0.8125rem] text-gray-400 truncate">{friend.email}</span>
-              <span class={`text-[0.75rem] truncate ${props.onlineUsers.has(friend.id) ? "text-green-500" : "text-gray-400"}`}>
+              <span class={`text-[0.75rem] truncate ${props.onlineUsers.has(friend.id) ? "text-success" : "text-gray-400"}`}>
                 {props.onlineUsers.has(friend.id) ? "Online" : formatLastSeen(friend.lastSeen)}
               </span>
             </div>

@@ -9,7 +9,11 @@
   --color-chat-bg: #f0f1f5;
   --color-chat-surface: #ffffff;
   --color-page: #f5f6fa;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
   --color-danger-soft: rgba(239, 68, 68, 0.08);
+  --color-success: #22c55e;
+  --color-success-hover: #16a34a;
   --color-success-soft: rgba(34, 197, 94, 0.08);
   --font-family-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -22,7 +26,7 @@ body {
   font-size: 0.9375rem;
   line-height: 1.5;
   min-height: 100dvh;
-  background: #f5f6fa;
+  background: var(--color-page);
   color: #111827;
   -webkit-font-smoothing: antialiased;
 }

@@ -43,7 +43,7 @@ export default function AddFriend(props: { onAdded?: () => void }) {
         </button>
       </div>
       {status() && (
-        <p class={`text-[0.8125rem] ${status()!.ok ? "text-green-500" : "text-red-500"}`}>{status()!.msg}</p>
+        <p class={`text-[0.8125rem] ${status()!.ok ? "text-success" : "text-danger"}`}>{status()!.msg}</p>
       )}
     </form>
   );

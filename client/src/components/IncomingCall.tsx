@@ -12,13 +12,13 @@ export default function IncomingCall() {
         <h3 class="text-lg font-semibold text-gray-900 m-0">Incoming call</h3>
         <div class="flex gap-3">
           <button
-            class="px-5 py-2 rounded-full bg-green-500 hover:bg-green-600 text-white font-medium border-0 cursor-pointer transition-colors"
+            class="px-5 py-2 rounded-full bg-success hover:bg-success-hover text-white font-medium border-0 cursor-pointer transition-colors"
             onClick={acceptCall}
           >
             Accept
           </button>
           <button
-            class="px-5 py-2 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium border-0 cursor-pointer transition-colors"
+            class="px-5 py-2 rounded-full bg-danger hover:bg-danger-hover text-white font-medium border-0 cursor-pointer transition-colors"
             onClick={rejectCall}
           >
             Decline

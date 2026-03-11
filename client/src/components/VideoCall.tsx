@@ -61,7 +61,7 @@ export default function VideoCall() {
         {/* Controls */}
         <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-black/50 backdrop-blur-sm rounded-full px-6 py-3">
           <button
-            class={`w-12 h-12 rounded-full flex items-center justify-center text-white border-0 cursor-pointer transition-colors ${videoOn() ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"}`}
+            class={`w-12 h-12 rounded-full flex items-center justify-center text-white border-0 cursor-pointer transition-colors ${videoOn() ? "bg-white/20 hover:bg-white/30" : "bg-danger hover:bg-danger-hover"}`}
             onClick={() => { const on = activeCall()?.toggleVideo(); setVideoOn(!!on); }}
             aria-pressed={!videoOn() ? "true" : "false"}
             title={videoOn() ? "Turn off camera" : "Turn on camera"}
@@ -74,7 +74,7 @@ export default function VideoCall() {
             </svg>
           </button>
           <button
-            class={`w-12 h-12 rounded-full flex items-center justify-center text-white border-0 cursor-pointer transition-colors ${audioOn() ? "bg-white/20 hover:bg-white/30" : "bg-red-500 hover:bg-red-600"}`}
+            class={`w-12 h-12 rounded-full flex items-center justify-center text-white border-0 cursor-pointer transition-colors ${audioOn() ? "bg-white/20 hover:bg-white/30" : "bg-danger hover:bg-danger-hover"}`}
             onClick={() => { const on = activeCall()?.toggleAudio(); setAudioOn(!!on); }}
             aria-pressed={!audioOn() ? "true" : "false"}
             title={audioOn() ? "Mute microphone" : "Unmute microphone"}
@@ -87,7 +87,7 @@ export default function VideoCall() {
             </svg>
           </button>
           <button
-            class="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white border-0 cursor-pointer transition-colors"
+            class="w-14 h-14 rounded-full bg-danger hover:bg-danger-hover flex items-center justify-center text-white border-0 cursor-pointer transition-colors"
             onClick={endCall}
             title="End call"
           >

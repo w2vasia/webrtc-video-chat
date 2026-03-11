@@ -71,8 +71,8 @@ export default function Chat() {
             <div class="flex items-center gap-2">
               <h2 class="text-primary text-xl font-semibold">Whisper</h2>
               <span class="flex items-center gap-1.5">
-                <span class={`w-2.5 h-2.5 rounded-full transition-colors ${wsConnected() ? "bg-green-500" : "bg-red-500 animate-pulse-dot"}`} />
-                {!wsConnected() && wsEverConnected() && <span class="text-xs text-red-500 font-medium">Reconnecting…</span>}
+                <span class={`w-2.5 h-2.5 rounded-full transition-colors ${wsConnected() ? "bg-success" : "bg-danger animate-pulse-dot"}`} />
+                {!wsConnected() && wsEverConnected() && <span class="text-xs text-danger font-medium">Reconnecting…</span>}
               </span>
             </div>
             <button

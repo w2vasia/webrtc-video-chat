@@ -37,6 +37,8 @@ bun run dev:server   # API + WebSocket at http://localhost:3000
 bun run dev:client   # Vite dev server at http://localhost:5173 (proxies /api + /ws to :3000)
 ```
 
+Ctrl+C stops all processes cleanly (trap propagates SIGINT to children; server closes WS connections and SQLite before exit).
+
 ### Other commands
 
 ```bash
