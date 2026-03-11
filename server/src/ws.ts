@@ -169,10 +169,13 @@ export function createWsHandlers(db: Database) {
         case "call-offer": {
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
           if (typeof data.offer?.sdp !== "string" || data.offer.sdp.length > MAX_SDP) break;
-          pendingOffers.set(callKey(userId, data.targetId), { callerId: userId, calleeId: data.targetId, offeredAt: Date.now() });
+          const callType = data.callType === "voice" || data.callType === "video" ? data.callType : "video";
+          if (!data.iceRestart && !data.renegotiate) {
+            pendingOffers.set(callKey(userId, data.targetId), { callerId: userId, calleeId: data.targetId, offeredAt: Date.now() });
+          }
           const target = onlineUsers.get(data.targetId);
           if (target) {
-            target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, offer: data.offer }));
+            target.ws.send(JSON.stringify({ type: "call-offer", senderId: userId, offer: data.offer, callType, ...(data.iceRestart && { iceRestart: true }), ...(data.renegotiate && { renegotiate: true }) }));
           }
           break;
         }
@@ -277,6 +280,17 @@ export function createWsHandlers(db: Database) {
             } else {
               typingTimers.delete(key);
             }
+          }
+          break;
+        }
+
+        case "camera-on": {
+          if (!checkWsRate(userId)) break;
+          if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (!activeCalls.has(callKey(userId, data.targetId))) break;
+          const target = onlineUsers.get(data.targetId);
+          if (target) {
+            target.ws.send(JSON.stringify({ type: "camera-on", senderId: userId }));
           }
           break;
         }

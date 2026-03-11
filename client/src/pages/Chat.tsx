@@ -7,7 +7,7 @@ import FriendList from "../components/FriendList";
 import AddFriend from "../components/AddFriend";
 import PendingRequests from "../components/PendingRequests";
 import ChatWindow from "../components/ChatWindow";
-import VideoCall from "../components/VideoCall";
+import CallView from "../components/CallView";
 import IncomingCall from "../components/IncomingCall";
 import { ToastContainer } from "../components/Toast";
 
@@ -57,7 +57,7 @@ export default function Chat() {
       <ToastContainer />
 
       <Show when={callStatus() === "calling" || callStatus() === "connecting" || callStatus() === "connected" || callStatus() === "ended"}>
-        <VideoCall />
+        <CallView />
       </Show>
 
       <Show when={callStatus() === "incoming"}>
