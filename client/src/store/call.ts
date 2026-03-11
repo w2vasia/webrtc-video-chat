@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { WebRTCCall } from "../lib/webrtc";
+import { WebRTCCall, type CallType } from "../lib/webrtc";
 import { wsClient } from "../lib/ws";
 import { showToast } from "../components/Toast";
 import { startRingtone, stopRingtone } from "../lib/ringtone";
@@ -12,10 +12,13 @@ const [localStream, setLocalStream] = createSignal<MediaStream | null>(null);
 const [remoteStream, setRemoteStream] = createSignal<MediaStream | null>(null);
 const [callTargetId, setCallTargetId] = createSignal<number | null>(null);
 const [callError, setCallError] = createSignal<string>("");
+const [callType, setCallType] = createSignal<CallType>("video");
+const [remoteVideoPrompt, setRemoteVideoPrompt] = createSignal(false);
 
 let pendingOffer: RTCSessionDescriptionInit | null = null;
 let pendingSenderId: number | null = null;
 let pendingCandidates: RTCIceCandidateInit[] = [];
+let pendingCallType: CallType = "video";
 
 export function useCall() {
   function setupCallListeners(): () => void {
@@ -36,6 +39,7 @@ export function useCall() {
       setCallStatus("incoming");
       pendingOffer = data.offer;
       pendingSenderId = data.senderId;
+      pendingCallType = data.callType || "video";
       startRingtone();
     }));
 
@@ -62,20 +66,29 @@ export function useCall() {
       endCall();
     }));
 
+    // eslint-disable-next-line solid/reactivity -- WS event handler
+    unsubs.push(wsClient.on("camera-on", () => {
+      if (callStatus() === "connected" || callStatus() === "connecting") {
+        setRemoteVideoPrompt(true);
+      }
+    }));
+
     return () => unsubs.forEach((fn) => fn());
   }
 
-  async function startCall(targetId: number) {
+  async function startCall(targetId: number, type: CallType = "video") {
     setCallError("");
+    setCallType(type);
+    setRemoteVideoPrompt(false);
     try {
-      const call = await WebRTCCall.create(targetId);
+      const call = await WebRTCCall.create(targetId, type);
       call.onRemoteStream = (s) => setRemoteStream(s);
       call.onConnected = () => setCallStatus("connected");
       call.onEnded = () => endCall();
       call.onReconnecting = () => setCallStatus("connecting");
       call.onFailed = () => showToast("Call lost", "error");
 
-      const stream = await call.startLocalMedia();
+      const stream = await call.startLocalMedia(type === "video");
       setLocalStream(stream);
       setActiveCall(call);
       setCallTargetId(targetId);
@@ -92,6 +105,8 @@ export function useCall() {
   async function acceptCall() {
     if (!pendingSenderId || !pendingOffer) return;
     stopRingtone();
+    setCallType(pendingCallType);
+    setRemoteVideoPrompt(false);
 
     const senderId = pendingSenderId;
     const offer = pendingOffer;
@@ -99,14 +114,14 @@ export function useCall() {
     pendingSenderId = null;
 
     try {
-      const call = await WebRTCCall.create(senderId);
+      const call = await WebRTCCall.create(senderId, pendingCallType);
       call.onRemoteStream = (s) => setRemoteStream(s);
       call.onConnected = () => setCallStatus("connected");
       call.onEnded = () => endCall();
       call.onReconnecting = () => setCallStatus("connecting");
       call.onFailed = () => showToast("Call lost", "error");
 
-      const stream = await call.startLocalMedia();
+      const stream = await call.startLocalMedia(pendingCallType === "video");
       setLocalStream(stream);
       setActiveCall(call);
 
@@ -152,6 +167,7 @@ export function useCall() {
     setActiveCall(null);
     setLocalStream(null);
     setRemoteStream(null);
+    setRemoteVideoPrompt(false);
     setCallStatus("ended");
     setTimeout(() => {
       setCallStatus("idle");
@@ -159,9 +175,30 @@ export function useCall() {
     }, 1500);
   }
 
+  async function enableCamera() {
+    const call = activeCall();
+    if (!call) return;
+    try {
+      const stream = await call.addVideoTrack();
+      setLocalStream(new MediaStream(stream.getTracks()));
+      setCallType("video");
+      wsClient.send({ type: "camera-on", targetId: call.targetId });
+    } catch (e) {
+      console.error("Failed to enable camera", e);
+      showToast("Could not access camera", "error");
+    }
+  }
+
+  function expandToVideo() {
+    setRemoteVideoPrompt(false);
+    setCallType("video");
+  }
+
   return {
     callStatus,
     callError,
+    callType,
+    remoteVideoPrompt,
     activeCall,
     localStream,
     remoteStream,
@@ -171,5 +208,7 @@ export function useCall() {
     acceptCall,
     rejectCall,
     endCall,
+    enableCamera,
+    expandToVideo,
   };
 }
