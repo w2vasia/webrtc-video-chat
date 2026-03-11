@@ -43,6 +43,7 @@ bun run dev:client   # Vite dev server at http://localhost:5173 (proxies /api + 
 bun run build        # Production build (client + server)
 bun run test         # Run all tests
 bun run seed         # Seed DB with test data
+bun run lint         # ESLint
 ```
 
 ## Prod
@@ -75,11 +76,13 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 - Friend search by email, friend requests, accept/reject
 - E2E encrypted text chat (X25519 + AES-256-GCM)
 - Offline message queue (delivered on reconnect)
-- WebRTC video/audio calls with cam/mic toggle
+- Read receipts
+- WebRTC video/audio calls with cam/mic toggle, ringtone
 - Online presence indicators
+- Toast notifications
 - PWA (installable, offline-capable)
 - Web push notifications (VAPID)
-- Dark theme, responsive (mobile + desktop)
+- Responsive (mobile + desktop)
 
 ## Project Structure
 
@@ -93,28 +96,49 @@ Client A <──WS (E2E encrypted)──> Hono/Bun Server <──WS──> Clien
 │   │   ├── routes/
 │   │   │   ├── auth.ts       # POST /register, /login
 │   │   │   ├── friends.ts    # Search, request, accept, list
+│   │   │   ├── ice.ts        # ICE server config
 │   │   │   ├── keys.ts       # Public key exchange
+│   │   │   ├── messages.ts   # Message history
 │   │   │   └── push.ts       # Push subscription
 │   │   └── middleware/
 │   │       └── auth.ts       # JWT verification
 │   └── migrations/
-│       └── 001_init.sql      # Schema
+│       ├── 001_init.sql      # Schema
+│       └── 002_read_receipts.sql
 ├── client/
 │   ├── src/
 │   │   ├── index.tsx         # SolidJS entry
 │   │   ├── App.tsx           # Router
 │   │   ├── pages/            # Login, Register, Chat
-│   │   ├── components/       # FriendList, ChatWindow, VideoCall, etc.
+│   │   ├── components/       # FriendList, ChatWindow, VideoCall, IncomingCall, Toast, etc.
 │   │   ├── store/            # auth.ts, chat.ts, call.ts
-│   │   ├── lib/              # api.ts, ws.ts, crypto.ts, keystore.ts, webrtc.ts, push.ts
+│   │   ├── lib/              # api.ts, ws.ts, crypto.ts, keystore.ts, webrtc.ts, push.ts, ringtone.ts
 │   │   └── styles/
 │   └── vite.config.ts
 ├── scripts/
 │   └── generate-vapid.ts
+├── .github/
+│   └── workflows/ci.yml      # GitHub Actions: bun test + vitest on push/PR
 ├── Dockerfile
 ├── docker-compose.yml
 └── .env.example
 ```
+
+## Glossary
+
+**ICE (Interactive Connectivity Establishment)** — protocol WebRTC uses to find a working network path between two peers. It collects "candidates" (possible routes) and picks the best one.
+
+**STUN (Session Traversal Utilities for NAT)** — server that tells a client its public IP/port as seen from the internet. Enables direct P2P connections through most NATs. Free public servers exist (e.g. Google's).
+
+**TURN (Traversal Using Relays around NAT)** — fallback relay server when direct P2P fails (symmetric NAT, firewall). Traffic is proxied through the TURN server. Requires hosting/paying for bandwidth.
+
+**NAT (Network Address Translation)** — router technique that maps many private IPs to one public IP. Causes WebRTC connectivity problems because peers can't reach each other's private addresses directly.
+
+**SDP (Session Description Protocol)** — text format describing a media session (codecs, ICE candidates, DTLS fingerprint). Exchanged as "offer" and "answer" during WebRTC negotiation.
+
+**DTLS-SRTP** — security layer for WebRTC media. DTLS establishes keys, SRTP encrypts the actual audio/video stream. Mandatory in WebRTC — media is always encrypted in transit.
+
+**ECDH (Elliptic Curve Diffie-Hellman)** — key agreement protocol. Two parties each generate a key pair; combining one's private key with the other's public key produces the same shared secret without ever transmitting it. Used here via X25519 curve.
 
 ## License
 
