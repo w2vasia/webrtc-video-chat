@@ -666,7 +666,19 @@ describe("message — call signaling", () => {
     expect(msg.callType).toBe("voice");
   });
 
-  it("relays camera-on to target", async () => {
+  it("relays camera-on to target during active call", async () => {
+    // Establish active call: offer + answer
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-offer", targetId: userBId, offer: { sdp: "v=0...", type: "offer" } }),
+    );
+    await handlers.message(
+      wsB as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "call-answer", targetId: userAId, answer: { sdp: "v=0...", type: "answer" } }),
+    );
+    wsA.sent = [];
+    wsB.sent = [];
+
     await handlers.message(
       wsA as unknown as ServerWebSocket<WsData>,
       JSON.stringify({ type: "camera-on", targetId: userBId }),
@@ -675,6 +687,15 @@ describe("message — call signaling", () => {
     const msg = lastMsg(wsB);
     expect(msg.type).toBe("camera-on");
     expect(msg.senderId).toBe(userAId);
+  });
+
+  it("drops camera-on without active call", async () => {
+    await handlers.message(
+      wsA as unknown as ServerWebSocket<WsData>,
+      JSON.stringify({ type: "camera-on", targetId: userBId }),
+    );
+
+    expect(wsB.sent).toHaveLength(0);
   });
 
   it("drops camera-on to non-friend", async () => {

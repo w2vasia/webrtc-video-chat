@@ -78,6 +78,7 @@ export default function CallView() {
             <button
               class={`w-12 h-12 rounded-full flex items-center justify-center text-white border-0 cursor-pointer transition-colors ${audioOn() ? "bg-white/20 hover:bg-white/30" : "bg-danger hover:bg-danger-hover"}`}
               onClick={() => { const on = activeCall()?.toggleAudio(); setAudioOn(!!on); }}
+              aria-pressed={!audioOn() ? "true" : "false"}
               title={audioOn() ? "Mute microphone" : "Unmute microphone"}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

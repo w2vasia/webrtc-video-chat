@@ -170,6 +170,7 @@ export function useCall() {
     setLocalStream(null);
     setRemoteStream(null);
     setRemoteVideoPrompt(false);
+    setCallType("video");
     setCallStatus("ended");
     setTimeout(() => {
       setCallStatus("idle");

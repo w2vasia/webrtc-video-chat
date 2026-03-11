@@ -285,7 +285,9 @@ export function createWsHandlers(db: Database) {
         }
 
         case "camera-on": {
+          if (!checkWsRate(userId)) break;
           if (typeof data.targetId !== "number" || !isFriend(data.targetId)) break;
+          if (!activeCalls.has(callKey(userId, data.targetId))) break;
           const target = onlineUsers.get(data.targetId);
           if (target) {
             target.ws.send(JSON.stringify({ type: "camera-on", senderId: userId }));
