@@ -45,9 +45,9 @@ function SystemEventPill(props: { msg: ChatMessage }) {
   );
 }
 
-export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number) => void }) {
+export default function ChatWindow(props: { friendId: number; onBack: () => void; onStartCall?: (friendId: number, type: "voice" | "video") => void }) {
   const { state, setState, sendMessage, sendTyping, loadHistory } = useChat();
-  const { callStatus, callTargetId, acceptCall, rejectCall } = useCall();
+  const { callStatus, callTargetId, acceptCall, rejectCall, callType } = useCall();
   const [input, setInput] = createSignal("");
   const [error, setError] = createSignal("");
   const [loadingMore, setLoadingMore] = createSignal(false);
@@ -166,20 +166,29 @@ export default function ChatWindow(props: { friendId: number; onBack: () => void
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10H5M5 10l5-5M5 10l5 5"/></svg>
         </button>
         <h3 class="font-semibold text-[1.0625rem] text-gray-900">Chat</h3>
-        <button
-          class="ml-auto flex items-center gap-1.5 px-4 py-2 bg-success hover:bg-success-hover text-white rounded-full font-semibold text-sm font-[inherit] cursor-pointer min-h-[40px] transition-colors"
-          onClick={() => props.onStartCall?.(props.friendId)}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-          Call
-        </button>
+        <div class="ml-auto flex items-center gap-1.5">
+          <button
+            class="flex items-center justify-center w-10 h-10 rounded-full bg-success hover:bg-success-hover text-white cursor-pointer transition-colors"
+            onClick={() => props.onStartCall?.(props.friendId, "voice")}
+            title="Voice call"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+          </button>
+          <button
+            class="flex items-center justify-center w-10 h-10 rounded-full bg-success hover:bg-success-hover text-white cursor-pointer transition-colors"
+            onClick={() => props.onStartCall?.(props.friendId, "video")}
+            title="Video call"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="14" height="14" rx="2"/><polygon points="23 7 17 12 23 17 23 7"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* Incoming call banner */}
       <Show when={callStatus() === "incoming" && callTargetId() === props.friendId}>
         <div class="flex items-center gap-2.5 px-5 py-2.5 bg-success-soft text-gray-900 font-medium text-[0.9375rem] border-b border-gray-200 animate-pulse-bg">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-          <span>Incoming call</span>
+          <span>Incoming {callType() === "voice" ? "voice" : "video"} call</span>
           <button class="ml-auto px-4 py-1.5 bg-success hover:bg-success-hover text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-colors" onClick={acceptCall}>Accept</button>
           <button class="px-4 py-1.5 bg-danger hover:bg-danger-hover text-white rounded-[10px] text-sm font-medium font-[inherit] cursor-pointer min-h-[32px] transition-colors" onClick={rejectCall}>Decline</button>
         </div>
